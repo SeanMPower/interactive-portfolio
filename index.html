@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Sean · Drive the Portfolio</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <!-- Start screen -->
+    <div id="start" class="screen">
+      <div class="start-card">
+        <h1>Sean's Portfolio</h1>
+        <p class="tagline">Fly the helicopter. Hover over a pad. Open a project.</p>
+        <div class="keys">
+          <div class="key-row"><span class="key">W</span></div>
+          <div class="key-row"><span class="key">A</span><span class="key">S</span><span class="key">D</span></div>
+          <p class="hint">or arrow keys · <span class="key sm">Space</span> climb · <span class="key sm">Shift</span> descend · <span class="key sm">E</span> open · <span class="key sm">R</span> reset</p>
+        </div>
+        <button id="start-btn">Take off</button>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="speed">
+        <div><span id="speed-val">0</span><small>km/h</small></div>
+        <div class="alt"><span id="alt-val">0</span><small>m alt</small></div>
+        <div id="rotor" class="hidden"><small>rotor</small><div class="bar"><div id="rotor-fill"></div></div></div>
+      </div>
+      <div id="prompt" class="hidden">
+        <span class="key sm">E</span> <span id="prompt-text">Open project</span>
+      </div>
+      <div id="toast" class="hidden"></div>
+      <div id="ringrun">
+        <div class="rr-title">Ring Run</div>
+        <div class="rr-row"><span id="rr-chevron">➤</span><span id="rr-count">0/10</span><span id="rr-time">0:00.0</span></div>
+        <div id="rr-best" class="rr-sub"></div>
+        <div id="rr-hint" class="rr-sub">Fly through the green ring to start</div>
+      </div>
+      <button id="reset-btn" title="Reset truck (R)">↺</button>
+    </div>
+
+    <!-- Landmark labels get appended here -->
+    <div id="labels"></div>
+
+    <!-- Touch controls -->
+    <div id="touch">
+      <div class="pad left">
+        <button data-k="left">◀</button>
+        <button data-k="right">▶</button>
+      </div>
+      <div class="pad right">
+        <button data-k="forward">▲</button>
+        <button data-k="backward">▼</button>
+      </div>
+      <div class="pad alt">
+        <button data-k="up">⤒</button>
+        <button data-k="down">⤓</button>
+      </div>
+      <button id="touch-action" class="hidden">OPEN</button>
+    </div>
+
+    <!-- Project overlay -->
+    <div id="overlay" class="hidden">
+      <div class="overlay-bar">
+        <div class="overlay-title">
+          <span id="overlay-dot"></span>
+          <strong id="overlay-name"></strong>
+          <span id="overlay-tech"></span>
+        </div>
+        <div class="overlay-actions">
+          <a id="overlay-open" target="_blank" rel="noopener">Open in new tab ↗</a>
+          <button id="overlay-close" title="Close (Esc)">✕</button>
+        </div>
+      </div>
+      <div id="overlay-body"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
