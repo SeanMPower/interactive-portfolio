@@ -7,6 +7,8 @@ frontend:
         - npm ci
     build:
       commands:
+        # Amplify env vars aren't visible to Vite at build time unless written to a .env file
+        - echo "VITE_LEADERBOARD_URL=$VITE_LEADERBOARD_URL" >> .env.production
         - npm run build
   artifacts:
     baseDirectory: dist

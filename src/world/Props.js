@@ -86,6 +86,8 @@ export class Props {
       const p = pineSpots[n]; m.compose(new THREE.Vector3(p.x, p.y + 9.6 * p.s, p.z), q.setFromAxisAngle(UP, p.rot + 0.8), new THREE.Vector3(p.s, p.s, p.s)); mesh.setMatrixAt(n, m); mesh.setColorAt(n, col.set(p.c).offsetHSL(0, 0, 0.08)); return true;
     });
     for (const p of pineSpots) staticCylinder(p.x, p.y, p.z, 0.55 * p.s, 11 * p.s);
+    /** Canopy tops, so things placed in the air (Ring Run rings) can clear the trees. */
+    this.trees = pineSpots.map((p) => ({ x: p.x, z: p.z, top: p.y + 12 * p.s }));
 
     // ---------- Maples (tall trunks, full two-tier crowns in Vermont fall colours)
     const maples = Math.round(140 * K);
@@ -114,6 +116,7 @@ export class Props {
       const p = mapleSpots[n]; m.compose(new THREE.Vector3(p.x + (rand() - 0.5) * 0.8, p.y + 8.6 * p.s, p.z + (rand() - 0.5) * 0.8), q.setFromEuler(new THREE.Euler(p.rot * 1.3, p.rot, 0)), new THREE.Vector3(p.s, p.s * 0.9, p.s)); mesh.setMatrixAt(n, m); mesh.setColorAt(n, p.top); return true;
     });
     for (const p of mapleSpots) staticCylinder(p.x, p.y, p.z, 0.55 * p.s, 9 * p.s);
+    this.trees.push(...mapleSpots.map((p) => ({ x: p.x, z: p.z, top: p.y + 10.5 * p.s })));
 
     // ---------- Fallen leaves under the maples
     const leafGeo = new THREE.CircleGeometry(0.22, 5);

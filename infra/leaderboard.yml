@@ -1,0 +1,131 @@
+# Ring Run leaderboard backend: one DynamoDB table + one Lambda behind a Function URL.
+#
+# Deploy (us-east-1, same account as the Amplify app):
+#   aws cloudformation deploy --template-file infra/leaderboard.yml \
+#     --stack-name portfolio-leaderboard --capabilities CAPABILITY_IAM --region us-east-1
+#   aws cloudformation describe-stacks --stack-name portfolio-leaderboard --region us-east-1 \
+#     --query "Stacks[0].Outputs[?OutputKey=='FunctionUrl'].OutputValue" --output text
+#
+# Put the printed URL in VITE_LEADERBOARD_URL (Amplify env var for prod, .env.local for dev).
+#
+# API (JSON):
+#   GET  /            → { scores: [{ initials, timeMs, date }] }   top 10, fastest first
+#   POST / { initials, timeMs } → { rank, entry, scores }          rank is 1-based over all runs
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Ring Run leaderboard for seanpower.dev (DynamoDB + Lambda Function URL)
+
+Parameters:
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: https://seanpower.dev,https://www.seanpower.dev,http://localhost:5173
+    Description: Origins allowed to read and post scores (CORS + a server-side Origin check)
+  TopN:
+    Type: Number
+    Default: 10
+    Description: How many entries GET returns
+
+Resources:
+  ScoresTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: course, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: course, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }   # "<timeMs zero-padded>#<uuid>" → sorts fastest first
+
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: scores-table
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:Query, dynamodb:PutItem]
+                Resource: !GetAtt ScoresTable.Arn
+
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt FunctionRole.Arn
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE: !Ref ScoresTable
+          ORIGINS: !Join [',', !Ref AllowedOrigins]
+          TOP: !Ref TopN
+      Code:
+        ZipFile: |
+          const { DynamoDBClient, QueryCommand, PutItemCommand } = require('@aws-sdk/client-dynamodb');
+          const { randomUUID } = require('crypto');
+          const db = new DynamoDBClient({});
+          const TABLE = process.env.TABLE, COURSE = 'ringrun', TOP = Number(process.env.TOP) || 10;
+          const ORIGINS = (process.env.ORIGINS || '').split(',').filter(Boolean);
+          const res = (statusCode, body) => ({ statusCode, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' }, body: JSON.stringify(body) });
+          const row = (it) => ({ initials: it.initials.S, timeMs: Number(it.timeMs.N), date: it.date.S });
+          const top = async () => {
+            const r = await db.send(new QueryCommand({ TableName: TABLE, KeyConditionExpression: 'course = :c', ExpressionAttributeValues: { ':c': { S: COURSE } }, Limit: TOP }));
+            return (r.Items || []).map(row);
+          };
+          exports.handler = async (event) => {
+            const method = event.requestContext?.http?.method || 'GET';
+            if (method === 'GET') return res(200, { scores: await top() });
+            if (method !== 'POST') return res(405, { error: 'method not allowed' });
+            const origin = event.headers?.origin || '';
+            if (ORIGINS.length && !ORIGINS.includes(origin)) return res(403, { error: 'origin not allowed' });
+            let body;
+            try { body = JSON.parse(event.body || '{}'); } catch { return res(400, { error: 'bad json' }); }
+            const initials = String(body.initials || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+            const timeMs = Math.round(Number(body.timeMs));
+            if (!initials) return res(400, { error: 'initials required' });
+            // a 10-ring course can't be flown in under 5 s; anything over an hour is noise
+            if (!Number.isFinite(timeMs) || timeMs < 5000 || timeMs > 3600000) return res(400, { error: 'implausible time' });
+            const sk = `${String(timeMs).padStart(9, '0')}#${randomUUID()}`;
+            const date = new Date().toISOString();
+            await db.send(new PutItemCommand({ TableName: TABLE, Item: {
+              course: { S: COURSE }, sk: { S: sk }, initials: { S: initials }, timeMs: { N: String(timeMs) }, date: { S: date },
+            } }));
+            const ahead = await db.send(new QueryCommand({ TableName: TABLE, KeyConditionExpression: 'course = :c AND sk < :s', ExpressionAttributeValues: { ':c': { S: COURSE }, ':s': { S: sk } }, Select: 'COUNT' }));
+            return res(200, { rank: (ahead.Count || 0) + 1, entry: { initials, timeMs, date }, scores: await top() });
+          };
+
+  FunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt Function.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowMethods: [GET, POST]
+        AllowHeaders: [content-type]
+        MaxAge: 3600
+
+  FunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+
+Outputs:
+  FunctionUrl:
+    Description: Set this as VITE_LEADERBOARD_URL
+    Value: !GetAtt FunctionUrl.FunctionUrl
+  TableName:
+    Value: !Ref ScoresTable

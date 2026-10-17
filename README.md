@@ -67,6 +67,32 @@ sites) render a blank iframe, and the browser gives JavaScript no way to detect 
 
 The overlay pauses physics and releases the keyboard while open, so WASD inside an embedded app won't fly the helicopter.
 
+## Ring Run leaderboard
+
+Finishing the ring course prompts for three initials and saves the time to a shared leaderboard
+(the **Leaderboard ›** link in the Ring Run HUD box opens the top 10). The backend is one
+CloudFormation stack — a DynamoDB table and a Lambda behind a Function URL — in `infra/leaderboard.yml`.
+
+```bash
+aws cloudformation deploy --template-file infra/leaderboard.yml \
+  --stack-name portfolio-leaderboard --capabilities CAPABILITY_IAM --region us-east-1
+aws cloudformation describe-stacks --stack-name portfolio-leaderboard --region us-east-1 \
+  --query "Stacks[0].Outputs[?OutputKey=='FunctionUrl'].OutputValue" --output text
+```
+
+Put the printed URL in `VITE_LEADERBOARD_URL`:
+
+* **Prod:** Amplify console → the app → *Hosting › Environment variables*, then redeploy
+  (`amplify.yml` writes it into `.env.production` before `vite build`).
+* **Dev:** `cp .env.example .env.local` and fill it in.
+* **Unset:** the board falls back to localStorage so the UI still works offline.
+
+`GET` returns the top 10 (`{ scores: [{ initials, timeMs, date }] }`); `POST { initials, timeMs }` stores a
+run and returns its 1-based `rank` over every run plus the fresh top 10. The Lambda rejects initials
+outside `[A-Z0-9]{1,3}`, times under 5 s or over an hour, and POSTs whose `Origin` isn't in the
+`AllowedOrigins` stack parameter (seanpower.dev + localhost by default). That keeps drive-by junk out,
+but it is not anti-cheat — anyone can POST from the site's origin with devtools.
+
 ## Project layout
 
 ```
@@ -76,6 +102,10 @@ src/
   Camera.js            fixed-angle follow camera (Bruno-style), scroll/pinch zoom
   data/projects.js     ← your projects
   ui/Overlay.js        iframe / card overlay
+  ui/Leaderboard.js    initials prompt + top-10 modal
+  leaderboard/api.js   fetch/submit against VITE_LEADERBOARD_URL (localStorage fallback)
+infra/
+  leaderboard.yml      CloudFormation: DynamoDB + Lambda Function URL for the leaderboard
   world/
     Terrain.js         procedural heightmap → smooth-shaded mesh + water + cannon Heightfield
     Helicopter.js      arcade flight model (altitude hold, eased inputs) + low-poly heli visual

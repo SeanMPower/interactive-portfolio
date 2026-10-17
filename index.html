@@ -40,6 +40,7 @@
         <div class="rr-row"><span id="rr-chevron">➤</span><span id="rr-count">0/10</span><span id="rr-time">0:00.0</span></div>
         <div id="rr-best" class="rr-sub"></div>
         <div id="rr-hint" class="rr-sub">Fly through the green ring to start</div>
+        <button id="rr-board" class="rr-link" type="button">Leaderboard ›</button>
       </div>
       <button id="reset-btn" title="Reset truck (R)">↺</button>
     </div>
@@ -78,6 +79,38 @@
         </div>
       </div>
       <div id="overlay-body"></div>
+    </div>
+
+    <!-- Ring Run leaderboard modal -->
+    <div id="board" class="hidden">
+      <div class="board-card" role="dialog" aria-labelledby="board-title">
+        <div class="board-bar">
+          <div>
+            <div class="rr-title">Ring Run</div>
+            <h2 id="board-title">Leaderboard</h2>
+          </div>
+          <button id="board-close" title="Close (Esc)" type="button">✕</button>
+        </div>
+
+        <div id="board-entry" class="hidden">
+          <div class="board-done">Course complete</div>
+          <div id="board-time">0:00.0</div>
+          <div id="board-rank" class="board-sub"></div>
+          <label class="board-label" for="board-i0">Enter your initials</label>
+          <div id="board-initials">
+            <input id="board-i0" maxlength="1" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" />
+            <input id="board-i1" maxlength="1" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" />
+            <input id="board-i2" maxlength="1" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" />
+          </div>
+          <div class="board-actions">
+            <button id="board-submit" type="button" disabled>Save time</button>
+            <button id="board-skip" class="secondary" type="button">Skip</button>
+          </div>
+        </div>
+
+        <div id="board-status"></div>
+        <div id="board-list"></div>
+      </div>
     </div>
 
     <script type="module" src="/src/main.js"></script>

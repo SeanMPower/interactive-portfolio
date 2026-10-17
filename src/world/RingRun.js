@@ -1,36 +1,50 @@
 import * as THREE from 'three';
 
+/** Course layout: [x, z, altitude above terrain, yaw of the ring's opening]. */
+export const RING_LAYOUT = [
+  [0, -60, 10, 0],
+  [60, -120, 16, 0.6],
+  [120, -30, 22, 1.6],
+  [90, 60, 18, 2.4],
+  [10, 110, 26, 3.0],
+  [-70, 120, 20, 3.6],
+  [-140, 40, 30, 4.3],
+  [-110, -60, 16, 5.0],
+  [-40, -150, 22, 5.6],
+  [28, -16, 12, 0.9],
+];
+
 /**
  * Ring Run: a course of floating rings around the map. Fly through the glowing start ring to
- * begin, then through each ring in order; the next ring is lit and a chevron above the HUD
- * points at it. The run is timed; best time is kept in localStorage.
+ * begin, then through each ring in order; the next ring is lit, a chevron in the HUD points at
+ * it, and a boxy translucent arrow floats above the helicopter aiming at it in 3D.
+ * The run is timed; best time is kept in localStorage.
  */
 export class RingRun {
-  constructor(scene, terrain, { radius = 6 } = {}) {
+  /**
+   * @param {{ radius?: number, obstacles?: {x:number,z:number,top:number}[], clearance?: number }} opts
+   *   obstacles: canopy tops (Props.trees). A ring whose bottom would sit inside a tree is lifted
+   *   so its lowest point clears the tallest nearby canopy by `clearance` metres.
+   */
+  constructor(scene, terrain, { radius = 6, obstacles = [], clearance = 2.5, arrowReach = () => 18 } = {}) {
     this.scene = scene;
     this.terrain = terrain;
     this.radius = radius;
+    this.arrowReach = arrowReach; // metres from the heli at which a far-away ring's arrow sits (≈ screen edge)
 
-    // [x, z, altitude above terrain, yaw of the ring's opening]
-    const layout = [
-      [0, -60, 10, 0],
-      [60, -120, 16, 0.6],
-      [120, -30, 22, 1.6],
-      [90, 60, 18, 2.4],
-      [10, 110, 26, 3.0],
-      [-70, 120, 20, 3.6],
-      [-140, 40, 30, 4.3],
-      [-110, -60, 16, 5.0],
-      [-40, -150, 22, 5.6],
-      [28, -16, 12, 0.9],
-    ];
+    const layout = RING_LAYOUT;
+    const minCenterY = (x, z) => {
+      let top = -Infinity;
+      for (const o of obstacles) if (Math.hypot(o.x - x, o.z - z) < radius + 4) top = Math.max(top, o.top);
+      return top === -Infinity ? -Infinity : top + clearance + radius;
+    };
 
 
     const ringGeo = new THREE.TorusGeometry(radius, 0.45, 10, 40);
     this.rings = layout.map(([x, z, alt, yaw], i) => {
       const mat = new THREE.MeshStandardMaterial({ color: '#ffb547', emissive: '#ffb547', emissiveIntensity: 0.2, roughness: 0.4 });
       const mesh = new THREE.Mesh(ringGeo, mat);
-      const y = terrain.heightAt(x, z) + alt;
+      const y = Math.max(terrain.heightAt(x, z) + alt, minCenterY(x, z));
       mesh.position.set(x, y, z);
       mesh.rotation.y = yaw;
       scene.add(mesh);
@@ -40,6 +54,34 @@ export class RingRun {
       mesh.add(badge);
       return { mesh, mat, badge, index: i, normal: new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)) };
     });
+
+    // Guide arrow: one solid, beveled slab (shaft + head extruded from a single outline) so the head
+    // can never separate from the shaft. Built pointing along +Z so lookAt() aims it. Shown while running.
+    const outline = new THREE.Shape();
+    const L = 2.6, W = 0.62, HW = 1.55, HL = 1.9; // half-length, half shaft width, half head width, head length
+    outline.moveTo(-W, -L);
+    outline.lineTo(W, -L);
+    outline.lineTo(W, L - HL);
+    outline.lineTo(HW, L - HL);
+    outline.lineTo(0, L);
+    outline.lineTo(-HW, L - HL);
+    outline.lineTo(-W, L - HL);
+    outline.closePath();
+    const thickness = 0.9;
+    const arrowGeo = new THREE.ExtrudeGeometry(outline, { depth: thickness, bevelEnabled: true, bevelThickness: 0.14, bevelSize: 0.14, bevelSegments: 3 });
+    arrowGeo.rotateX(Math.PI / 2);          // shape +Y (tip) → +Z, extrusion → -Y
+    arrowGeo.translate(0, thickness / 2, 0); // centre the slab vertically
+    const arrowMat = new THREE.MeshPhysicalMaterial({
+      color: '#d8232a', emissive: '#7a0a10', emissiveIntensity: 0.35,
+      roughness: 0.22, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.15,
+      transparent: true, opacity: 0.62, depthWrite: false,
+    });
+    this.arrow = new THREE.Mesh(arrowGeo, arrowMat);
+    this.arrow.visible = false;
+    this.arrow.renderOrder = 10;
+    scene.add(this.arrow);
+    this._arrowTarget = new THREE.Vector3();
+    this._arrowPos = new THREE.Vector3();
 
     this.state = 'idle'; // idle | running | done
     this.next = 0;
@@ -90,6 +132,26 @@ export class RingRun {
     }
 
     if (!target) return null;
+
+    // Guide arrow: sits on the line from the helicopter to the next ring. Far ring → pushed out toward
+    // the screen edge; as the ring gets closer the arrow slides in beside the helicopter. Aims in 3D.
+    this.arrow.visible = this.state === 'running';
+    if (this.arrow.visible) {
+      const tp = target.mesh.position;
+      const dx = tp.x - heliPos.x, dz = tp.z - heliPos.z;
+      const dist = Math.hypot(dx, dz) || 1;
+      const far = Math.min(1, dist / 90);                  // 0 = on top of the ring, 1 = ≥90 m away
+      const reach = Math.min(this.arrowReach(), dist * 0.5); // never past the halfway point to the ring
+      const offset = 4 + (reach - 4) * far;
+      this._arrowPos.set(
+        heliPos.x + (dx / dist) * offset,
+        heliPos.y + 3 + Math.sin(elapsed * 2.5) * 0.3,
+        heliPos.z + (dz / dist) * offset,
+      );
+      this.arrow.position.copy(this._arrowPos);
+      this.arrow.lookAt(tp);
+      this.arrow.scale.setScalar(1.1 + 0.5 * far);         // a little bigger when it's out at the edge
+    }
 
     // Pass detection: helicopter inside the ring's radius and crossed its plane since last frame
     const rel = new THREE.Vector3().subVectors(heliPos, target.mesh.position);

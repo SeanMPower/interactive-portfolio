@@ -10,6 +10,7 @@ import { Dust } from './world/Dust.js';
 import { Controls } from './Controls.js';
 import { FollowCamera } from './Camera.js';
 import { Overlay } from './ui/Overlay.js';
+import { Leaderboard } from './ui/Leaderboard.js';
 import { RingRun, fmtTime } from './world/RingRun.js';
 
 const HOVER_TO_OPEN = 12; // metres above a pad at which the "open" prompt appears
@@ -108,7 +109,10 @@ const spawn = new THREE.Vector3(0, terrain.heightAt(0, 0) + 8, 0);
 const heli = new Helicopter(world, scene, terrain, { spawn });
 heli.setPads(landmarks.items.map((it) => ({ x: it.pad.x, z: it.pad.z, radius: PAD_RADIUS, top: it.padTop })));
 const dust = new Dust(scene);
-const ringRun = new RingRun(scene, terrain);
+const ringRun = new RingRun(scene, terrain, {
+  obstacles: props.trees,                                             // rings lift themselves clear of the canopy
+  arrowReach: () => followCam.baseDistance * followCam.zoom * 0.3,    // guide arrow's "screen edge" distance tracks the zoom
+});
 window.__heli = heli;
 window.__ringRun = ringRun; // handy for poking at tuning from the console
 
@@ -146,9 +150,17 @@ const overlay = new Overlay({
   onClose: () => { paused = false; controls.setEnabled(true); },
 });
 
+// Ring Run leaderboard: opened from the HUD link, or automatically after a finished run
+let pausedBeforeBoard = false;
+const board = new Leaderboard({
+  onOpen: () => { pausedBeforeBoard = paused; paused = true; controls.setEnabled(false); },
+  onClose: () => { paused = pausedBeforeBoard; controls.setEnabled(!paused); },
+});
+document.getElementById('rr-board').addEventListener('click', () => { if (!overlay.isOpen) board.show(); });
+
 let activeProject = null;
 controls.onAction = () => {
-  if (overlay.isOpen || paused) return;
+  if (overlay.isOpen || board.isOpen || paused) return;
   if (activeProject && (activeProject.url || activeProject.embed)) {
     landmarks.markVisited(activeProject.id);
     overlay.open(activeProject);
@@ -156,8 +168,9 @@ controls.onAction = () => {
     toast(activeProject.description || 'Nothing to open here.');
   }
 };
-controls.onEscape = () => overlay.close();
+controls.onEscape = () => { if (board.isOpen) board.close(); else overlay.close(); };
 controls.onReset = () => {
+  if (board.isOpen) return;
   const p = heli.position;
   const onMap = Math.abs(p.x) < terrain.half && Math.abs(p.z) < terrain.half && p.y > -20;
   if (onMap) heli.reset(new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z) + 8, p.z), heli.yaw);
@@ -256,8 +269,11 @@ function frame(now) {
     const rr = ringRun.update(heli.position, dt, elapsed);
     if (rr === 'start') toast('Go! Follow the glowing rings', 2.5);
     else if (rr === 'ring') toast(`Ring ${ringRun.next} of ${ringRun.total}`, 1.2);
-    else if (rr === 'finish') toast(`Course complete · ${fmtTime(ringRun.lastResult)}`, 4);
-    else if (rr === 'record') toast(`New best time · ${fmtTime(ringRun.lastResult)}!`, 4);
+    else if (rr === 'finish' || rr === 'record') {
+      toast(rr === 'record' ? `New best time · ${fmtTime(ringRun.lastResult)}!` : `Course complete · ${fmtTime(ringRun.lastResult)}`, 4);
+      const finished = ringRun.lastResult;
+      setTimeout(() => { if (!overlay.isOpen && !board.isOpen) board.promptEntry(finished * 1000); }, 900);
+    }
 
     const ev = heli.takeEvent();
     if (ev === 'landed') toast('Landed · hold Space to spool up and take off', 3.5);
