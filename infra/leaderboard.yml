@@ -111,6 +111,7 @@ Resources:
         AllowHeaders: [content-type]
         MaxAge: 3600
 
+  # A public (AuthType NONE) Function URL needs BOTH grants, or every request gets a 403 Forbidden.
   FunctionUrlPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -118,6 +119,13 @@ Resources:
       Action: lambda:InvokeFunctionUrl
       Principal: '*'
       FunctionUrlAuthType: NONE
+  FunctionUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: '*'
+      InvokedViaFunctionUrl: true
 
 Outputs:
   FunctionUrl:
