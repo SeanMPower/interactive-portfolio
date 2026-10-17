@@ -72,8 +72,13 @@ scene.add(terrain.mesh, terrain.water);
 world.addBody(terrain.body);
 
 const landmarks = new Landmarks(projects, terrain, world, scene, camera);
-// Winding dirt roads looping spawn → each landmark pad → spawn
-const roads = new Roads(terrain, scene, [{ x: 0, z: 0 }, ...landmarks.items.map((it) => ({ x: it.pad.x, z: it.pad.z }))]);
+// Roads: a ring road through the landmark pads in order around the map, plus a spur from spawn to the nearest pad
+const padStops = landmarks.items.map((it) => ({ x: it.pad.x, z: it.pad.z })).sort((a, b) => Math.atan2(a.z, a.x) - Math.atan2(b.z, b.x));
+const nearestPad = padStops.reduce((best, p) => (Math.hypot(p.x, p.z) < Math.hypot(best.x, best.z) ? p : best));
+const roads = new Roads(terrain, scene, [
+  { stops: padStops, closed: true },
+  { stops: [{ x: 0, z: 0 }, nearestPad], closed: false },
+]);
 const playground = projects.find((p) => p.id === 'playground');
 // Keep trees well clear of landmarks and pads, plus an extra clearing on the camera side (+x,+z)
 // so nothing stands between the camera and what you're flying toward.
