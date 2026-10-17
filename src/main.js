@@ -112,6 +112,7 @@ const dust = new Dust(scene);
 const ringRun = new RingRun(scene, terrain, {
   obstacles: props.trees,                                             // rings lift themselves clear of the canopy
   arrowReach: () => followCam.baseDistance * followCam.zoom * 0.3,    // guide arrow's "screen edge" distance tracks the zoom
+  camera,                                                             // …and is clamped to the actual viewport (phones)
 });
 window.__heli = heli;
 window.__ringRun = ringRun; // handy for poking at tuning from the console

@@ -26,11 +26,12 @@ export class RingRun {
    *   obstacles: canopy tops (Props.trees). A ring whose bottom would sit inside a tree is lifted
    *   so its lowest point clears the tallest nearby canopy by `clearance` metres.
    */
-  constructor(scene, terrain, { radius = 6, obstacles = [], clearance = 2.5, arrowReach = () => 18 } = {}) {
+  constructor(scene, terrain, { radius = 6, obstacles = [], clearance = 2.5, arrowReach = () => 18, camera = null } = {}) {
     this.scene = scene;
     this.terrain = terrain;
     this.radius = radius;
-    this.arrowReach = arrowReach; // metres from the heli at which a far-away ring's arrow sits (≈ screen edge)
+    this.arrowReach = arrowReach; // max metres from the heli for a far-away ring's arrow
+    this.camera = camera;         // used to keep the arrow inside the viewport on narrow (phone) screens
 
     const layout = RING_LAYOUT;
     const minCenterY = (x, z) => {
@@ -82,6 +83,7 @@ export class RingRun {
     scene.add(this.arrow);
     this._arrowTarget = new THREE.Vector3();
     this._arrowPos = new THREE.Vector3();
+    this._ndc = new THREE.Vector3();
 
     this.state = 'idle'; // idle | running | done
     this.next = 0;
@@ -142,12 +144,20 @@ export class RingRun {
       const dist = Math.hypot(dx, dz) || 1;
       const far = Math.min(1, dist / 90);                  // 0 = on top of the ring, 1 = ≥90 m away
       const reach = Math.min(this.arrowReach(), dist * 0.5); // never past the halfway point to the ring
-      const offset = 4 + (reach - 4) * far;
-      this._arrowPos.set(
-        heliPos.x + (dx / dist) * offset,
-        heliPos.y + 3 + Math.sin(elapsed * 2.5) * 0.3,
-        heliPos.z + (dz / dist) * offset,
-      );
+      let offset = 4 + (reach - 4) * far;
+      const ay = heliPos.y + 3 + Math.sin(elapsed * 2.5) * 0.3;
+      this._arrowPos.set(heliPos.x + (dx / dist) * offset, ay, heliPos.z + (dz / dist) * offset);
+      // Keep it on screen: pull the arrow in until its projected position sits inside the viewport
+      // with a margin (portrait phones have a much narrower horizontal field than desktops).
+      if (this.camera) {
+        const LX = 0.62, LY = 0.66; // NDC limits (1 = screen edge); leaves room for the arrow's size and the HUD
+        for (let i = 0; i < 8 && offset > 4; i++) {
+          this._ndc.copy(this._arrowPos).project(this.camera);
+          if (Math.abs(this._ndc.x) <= LX && Math.abs(this._ndc.y) <= LY) break;
+          offset = Math.max(4, offset * 0.8);
+          this._arrowPos.set(heliPos.x + (dx / dist) * offset, ay, heliPos.z + (dz / dist) * offset);
+        }
+      }
       this.arrow.position.copy(this._arrowPos);
       this.arrow.lookAt(tp);
       this.arrow.scale.setScalar(1.1 + 0.5 * far);         // a little bigger when it's out at the edge
