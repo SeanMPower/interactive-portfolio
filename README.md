@@ -89,9 +89,8 @@ Put the printed URL in `VITE_LEADERBOARD_URL`:
 
 `GET` returns the top 10 (`{ scores: [{ initials, timeMs, date }] }`); `POST { initials, timeMs }` stores a
 run and returns its 1-based `rank` over every run plus the fresh top 10. The Lambda rejects initials
-outside `[A-Z0-9]{1,3}`, times under 5 s or over an hour, and POSTs whose `Origin` isn't in the
-`AllowedOrigins` stack parameter (seanpower.dev + localhost by default). That keeps drive-by junk out,
-but it is not anti-cheat — anyone can POST from the site's origin with devtools.
+outside `[A-Z0-9]{1,3}` and times under 5 s or over an hour. That keeps junk out, but it is not
+anti-cheat — anyone can POST a time with curl or devtools.
 
 ## Project layout
 

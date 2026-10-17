@@ -17,8 +17,8 @@ Description: Ring Run leaderboard for seanpower.dev (DynamoDB + Lambda Function 
 Parameters:
   AllowedOrigins:
     Type: CommaDelimitedList
-    Default: https://seanpower.dev,https://www.seanpower.dev,http://localhost:5173
-    Description: Origins allowed to read and post scores (CORS + a server-side Origin check)
+    Default: '*'
+    Description: CORS allow-list for the Function URL. '*' = any site may read/post (the Lambda validates every write regardless)
   TopN:
     Type: Number
     Default: 10
@@ -67,7 +67,6 @@ Resources:
       Environment:
         Variables:
           TABLE: !Ref ScoresTable
-          ORIGINS: !Join [',', !Ref AllowedOrigins]
           TOP: !Ref TopN
       Code:
         ZipFile: |
@@ -75,7 +74,6 @@ Resources:
           const { randomUUID } = require('crypto');
           const db = new DynamoDBClient({});
           const TABLE = process.env.TABLE, COURSE = 'ringrun', TOP = Number(process.env.TOP) || 10;
-          const ORIGINS = (process.env.ORIGINS || '').split(',').filter(Boolean);
           const res = (statusCode, body) => ({ statusCode, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' }, body: JSON.stringify(body) });
           const row = (it) => ({ initials: it.initials.S, timeMs: Number(it.timeMs.N), date: it.date.S });
           const top = async () => {
@@ -86,8 +84,6 @@ Resources:
             const method = event.requestContext?.http?.method || 'GET';
             if (method === 'GET') return res(200, { scores: await top() });
             if (method !== 'POST') return res(405, { error: 'method not allowed' });
-            const origin = event.headers?.origin || '';
-            if (ORIGINS.length && !ORIGINS.includes(origin)) return res(403, { error: 'origin not allowed' });
             let body;
             try { body = JSON.parse(event.body || '{}'); } catch { return res(400, { error: 'bad json' }); }
             const initials = String(body.initials || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
