@@ -99,8 +99,8 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 @media (pointer: coarse) { #touch { display: block; } #speed { bottom: auto; top: 1.25rem; } #reset-btn { bottom: auto; top: 1.25rem; } }
 #touch .pad { position: absolute; bottom: 1.5rem; display: flex; gap: 10px; pointer-events: auto; }
 #touch .pad.left { left: 1.5rem; }
-#touch .pad.right { right: 1.5rem; flex-direction: column-reverse; }
-#touch .pad.alt { right: 6.5rem; flex-direction: column-reverse; }
+#touch .pad.right { right: 1.5rem; flex-direction: column; }
+#touch .pad.alt { right: 6.5rem; flex-direction: column; }
 #touch .pad.alt button { width: 56px; height: 56px; border-radius: 14px; }
 #touch button {
   width: 68px; height: 68px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.14);
