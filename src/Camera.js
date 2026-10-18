@@ -14,6 +14,8 @@ export class FollowCamera {
     this.baseDistance = 50;
     this.lookAhead = 2.5;
     this.smooth = 3;              // higher = snappier
+    this.scale = 1;               // extra distance multiplier (eased toward targetScale); < 1 when on foot
+    this.targetScale = 1;
 
     this._lookAt = new THREE.Vector3();
     this._desired = new THREE.Vector3();
@@ -37,7 +39,8 @@ export class FollowCamera {
   /** Snap instantly (on spawn/reset). */
   snapTo(position) {
     this.target.copy(position);
-    this._desired.copy(this.target).addScaledVector(this.offsetDir, this.baseDistance * this.zoom);
+    this.scale = this.targetScale;
+    this._desired.copy(this.target).addScaledVector(this.offsetDir, this.baseDistance * this.zoom * this.scale);
     this.camera.position.copy(this._desired);
     this.camera.lookAt(this.target);
   }
@@ -54,7 +57,8 @@ export class FollowCamera {
     this.target.y = THREE.MathUtils.damp(this.target.y, this._lookAt.y, this.smooth, dt);
     this.target.z = THREE.MathUtils.damp(this.target.z, this._lookAt.z, this.smooth, dt);
 
-    this._desired.copy(this.target).addScaledVector(this.offsetDir, this.baseDistance * this.zoom);
+    this.scale = THREE.MathUtils.damp(this.scale, this.targetScale, 2, dt);
+    this._desired.copy(this.target).addScaledVector(this.offsetDir, this.baseDistance * this.zoom * this.scale);
     this.camera.position.x = THREE.MathUtils.damp(this.camera.position.x, this._desired.x, this.smooth * 1.5, dt);
     this.camera.position.y = THREE.MathUtils.damp(this.camera.position.y, this._desired.y, this.smooth * 1.5, dt);
     this.camera.position.z = THREE.MathUtils.damp(this.camera.position.z, this._desired.z, this.smooth * 1.5, dt);

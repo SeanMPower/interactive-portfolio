@@ -9,6 +9,7 @@ export class Controls {
     this.enabled = true;
     this.onAction = null; // E / tap "OPEN"
     this.onReset = null;  // R
+    this.onSecondary = null; // F / tap "EXIT" or "BOARD" (get out of / back into the helicopter)
     this.onEscape = null;
 
     const map = {
@@ -27,6 +28,7 @@ export class Controls {
       if (map[e.code]) { this.state[map[e.code]] = true; e.preventDefault(); }
       if (e.code === 'KeyE' || e.code === 'Enter') this.onAction?.();
       if (e.code === 'KeyR') this.onReset?.();
+      if (e.code === 'KeyF') this.onSecondary?.();
     });
     window.addEventListener('keyup', (e) => {
       if (map[e.code]) this.state[map[e.code]] = false;
@@ -44,6 +46,7 @@ export class Controls {
       btn.addEventListener('pointerleave', up);
     });
     document.getElementById('touch-action')?.addEventListener('click', () => this.onAction?.());
+    document.getElementById('touch-secondary')?.addEventListener('click', () => this.onSecondary?.());
     document.getElementById('reset-btn')?.addEventListener('click', () => this.onReset?.());
   }
 

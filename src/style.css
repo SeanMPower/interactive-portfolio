@@ -55,6 +55,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 }
 #speed small { font-size: 0.65rem; color: var(--muted); margin-left: 4px; font-weight: 600; }
 #speed .alt { font-size: 0.95rem; margin-top: 0.35rem; color: var(--muted); }
+#pearl-arrow { display: inline-block; color: var(--accent); font-size: 0.8rem; margin-left: 6px; }
 #rotor { margin-top: 0.5rem; display: flex; align-items: center; gap: 6px; }
 #rotor small { font-size: 0.6rem; color: var(--muted); font-weight: 600; margin: 0; }
 #rotor .bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; min-width: 70px; }
@@ -65,6 +66,13 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   padding: 0.6rem 1.1rem 0.6rem 0.7rem; display: flex; align-items: center; gap: 0.6rem;
   font-weight: 600; animation: pop 0.25s ease;
 }
+#prompt2 {
+  position: absolute; left: 50%; bottom: 10.2rem; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px;
+  padding: 0.45rem 0.95rem 0.45rem 0.6rem; display: flex; align-items: center; gap: 0.6rem;
+  font-weight: 600; font-size: 0.9rem; opacity: 0.92; animation: pop 0.25s ease;
+}
+#prompt2.solo { bottom: 7rem; }
 @keyframes pop { from { transform: translateX(-50%) scale(0.9); opacity: 0; } }
 #toast {
   position: absolute; top: 1.25rem; left: 50%; transform: translateX(-50%);
@@ -76,6 +84,14 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
   background: var(--panel); color: var(--text); font-size: 1.4rem; cursor: pointer;
 }
+
+/* ---------- Dive transition ---------- */
+#dive {
+  position: fixed; inset: 0; z-index: 25; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, #0b3a5e 0%, #04131f 70%);
+  transition: opacity 0.7s ease;
+}
+#dive.on { opacity: 1; }
 
 /* ---------- Landmark labels ---------- */
 #labels { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
@@ -108,11 +124,13 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   touch-action: none;
 }
 #touch button:active { background: var(--accent); color: #1a1200; }
-#touch-action {
+#touch-action, #touch-secondary {
   position: absolute; left: 50%; bottom: 1.5rem; transform: translateX(-50%); pointer-events: auto;
   width: auto !important; padding: 0 1.4rem; height: 56px !important; border-radius: 999px !important;
   background: var(--accent) !important; color: #1a1200 !important; font-weight: 800;
 }
+#touch-secondary { bottom: 5.6rem; height: 46px !important; background: rgba(16,18,26,0.75) !important; color: var(--text) !important; border-color: rgba(255,255,255,0.25) !important; }
+#touch-secondary.solo { bottom: 1.5rem; }
 
 /* ---------- Project overlay ---------- */
 #overlay {
@@ -160,6 +178,8 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   .overlay-bar { padding: 0.6rem 0.8rem; }
   #overlay-tech { display: none; }
   #prompt { bottom: 8.5rem; }
+  #prompt2 { bottom: 11.5rem; }
+  #prompt2.solo { bottom: 8.5rem; }
 }
 
 /* ---------- Ring Run panel ---------- */

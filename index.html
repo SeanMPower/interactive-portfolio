@@ -18,11 +18,11 @@
       <div class="start-card">
         <h1>Sean's Portfolio</h1>
         <p class="tagline">Where dreams take flight</p>
-        <p class="howto">Fly the helicopter. Hover over a pad. Open a project.</p>
+        <p class="howto">Fly the helicopter. Hover over a pad. Open a project. Land, get out, and find the submarine.</p>
         <div class="keys">
           <div class="key-row"><span class="key">W</span></div>
           <div class="key-row"><span class="key">A</span><span class="key">S</span><span class="key">D</span></div>
-          <p class="hint">or arrow keys · <span class="key sm">Space</span> climb · <span class="key sm">Shift</span> descend · <span class="key sm">E</span> open · <span class="key sm">R</span> reset</p>
+          <p class="hint">or arrow keys · <span class="key sm">Space</span> climb · <span class="key sm">Shift</span> descend · <span class="key sm">E</span> open · <span class="key sm">F</span> get out once landed · <span class="key sm">R</span> reset</p>
         </div>
         <button id="start-btn">Take off</button>
       </div>
@@ -32,11 +32,15 @@
     <div id="hud">
       <div id="speed">
         <div><span id="speed-val">0</span><small>km/h</small></div>
-        <div class="alt"><span id="alt-val">0</span><small>m alt</small></div>
+        <div class="alt"><span id="alt-val">0</span><small id="alt-unit">m alt</small></div>
+        <div id="pearls" class="alt hidden"><span id="pearls-val">0/8</span><small>pearls</small> <span id="pearl-arrow">➤</span><small id="pearl-hint"></small></div>
         <div id="rotor" class="hidden"><small>rotor</small><div class="bar"><div id="rotor-fill"></div></div></div>
       </div>
       <div id="prompt" class="hidden">
         <span class="key sm">E</span> <span id="prompt-text">Open project</span>
+      </div>
+      <div id="prompt2" class="hidden">
+        <span class="key sm">F</span> <span id="prompt2-text">Get out</span>
       </div>
       <div id="toast" class="hidden"></div>
       <div id="ringrun">
@@ -48,6 +52,9 @@
       </div>
       <button id="reset-btn" title="Reset truck (R)">↺</button>
     </div>
+
+    <!-- Dive / surface transition -->
+    <div id="dive"></div>
 
     <!-- Landmark labels get appended here -->
     <div id="labels"></div>
@@ -67,6 +74,7 @@
         <button data-k="down">⤓</button>
       </div>
       <button id="touch-action" class="hidden">OPEN</button>
+      <button id="touch-secondary" class="hidden">EXIT</button>
     </div>
 
     <!-- Project overlay -->
