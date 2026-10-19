@@ -150,7 +150,6 @@ const hud = {
   rrChevron: document.getElementById('rr-chevron'),
   rrCount: document.getElementById('rr-count'),
   rrTime: document.getElementById('rr-time'),
-  rrBest: document.getElementById('rr-best'),
   rrHint: document.getElementById('rr-hint'),
   rotorFill: document.getElementById('rotor-fill'),
   prompt: document.getElementById('prompt'),
@@ -573,10 +572,9 @@ function frame(now) {
   hud.rr.classList.toggle('done', ringRun.state === 'done');
   hud.rrCount.textContent = running ? `${ringRun.next}/${ringRun.total}` : ringRun.state === 'done' ? `${ringRun.total}/${ringRun.total}` : `0/${ringRun.total}`;
   hud.rrTime.textContent = fmtTime(running ? ringRun.time : ringRun.lastResult ?? 0);
-  hud.rrBest.textContent = ringRun.best ? `Best ${fmtTime(ringRun.best)}` : '';
   hud.rrHint.textContent = running
     ? (b ? `Next ring ${Math.round(b.distance)} m ${b.altitude > 3 ? '↑' : b.altitude < -3 ? '↓' : '→'}` : '')
-    : ringRun.state === 'done' ? 'Fly through the green ring to go again' : 'Fly through the green ring to start';
+    : ringRun.state === 'done' ? 'Green ring to go again' : 'Fly through the green ring to start';
 
   hud.rotor.classList.toggle('hidden', onFoot || (!heli.landed && heli.spool > 0.98));
   hud.rotorFill.style.width = `${Math.round(heli.spool * 100)}%`;
