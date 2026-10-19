@@ -266,6 +266,10 @@ function travelTo(x, z, marker) {
     jet.place(x, z, jet.yaw, { airborne: true, altitude: 45, speed: Math.max(jet.speed, jet.tuning.cruise) });
     followCam.snapTo(jet.position);
   } else if (mode === 'heli') {
+    // the helicopter prefers a helipad: if there's one near the chosen spot (the hangar's pad, say), hover over it
+    let best = null, bd = 40;
+    for (const pd of padColliders) { const d = Math.hypot(pd.x - x, pd.z - z); if (d < bd) { bd = d; best = pd; } }
+    if (best) { x = best.x; z = best.z; }
     heli.reset(new THREE.Vector3(x, Math.max(terrain.heightAt(x, z), terrain.waterLevel) + 10, z), heli.yaw);
     followCam.snapTo(heli.position);
   } else if (mode === 'foot') {
