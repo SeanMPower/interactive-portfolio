@@ -5,7 +5,8 @@
  */
 export class Controls {
   constructor() {
-    this.state = { forward: false, backward: false, left: false, right: false, up: false, down: false };
+    // keys are booleans; the touch joystick writes analog axes (-1..1) that the vehicles add on top
+    this.state = { forward: false, backward: false, left: false, right: false, up: false, down: false, axisX: 0, axisY: 0 };
     this.enabled = true;
     this.onAction = null; // E / tap "OPEN"
     this.onReset = null;  // R
@@ -45,13 +46,52 @@ export class Controls {
       btn.addEventListener('pointercancel', up);
       btn.addEventListener('pointerleave', up);
     });
+    this.#joystick();
     document.getElementById('touch-action')?.addEventListener('click', () => this.onAction?.());
     document.getElementById('touch-secondary')?.addEventListener('click', () => this.onSecondary?.());
     document.getElementById('reset-btn')?.addEventListener('click', () => this.onReset?.());
   }
 
   releaseAll() {
-    for (const k of Object.keys(this.state)) this.state[k] = false;
+    for (const k of Object.keys(this.state)) this.state[k] = typeof this.state[k] === 'number' ? 0 : false;
+    this.resetStick?.();
+  }
+
+  /** Circular thumb joystick (touch only): drag anywhere on the base; the knob follows, clamped to the ring. */
+  #joystick() {
+    const base = document.getElementById('stick');
+    const knob = document.getElementById('stick-knob');
+    if (!base || !knob) return;
+    const RADIUS = 46;      // px travel of the knob
+    const DEAD = 0.14;      // dead zone (fraction of RADIUS)
+    let pointerId = null, cx = 0, cy = 0;
+    const set = (dx, dy) => {
+      const len = Math.hypot(dx, dy);
+      const k = len > RADIUS ? RADIUS / len : 1;
+      dx *= k; dy *= k;
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      const n = Math.min(1, len / RADIUS);
+      const mag = n < DEAD ? 0 : (n - DEAD) / (1 - DEAD);   // dead zone, then linear to the rim
+      const ang = Math.atan2(dy, dx);
+      this.state.axisX = this.enabled ? Math.cos(ang) * mag : 0;
+      this.state.axisY = this.enabled ? -Math.sin(ang) * mag : 0; // up on screen = forward
+      base.classList.toggle('active', mag > 0);
+    };
+    this.resetStick = () => { pointerId = null; set(0, 0); base.classList.remove('active'); };
+    base.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (pointerId !== null) return;
+      pointerId = e.pointerId;
+      base.setPointerCapture(pointerId);
+      const r = base.getBoundingClientRect();
+      cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+      set(e.clientX - cx, e.clientY - cy);
+    });
+    base.addEventListener('pointermove', (e) => { if (e.pointerId === pointerId) { e.preventDefault(); set(e.clientX - cx, e.clientY - cy); } });
+    const end = (e) => { if (e.pointerId === pointerId) this.resetStick(); };
+    base.addEventListener('pointerup', end);
+    base.addEventListener('pointercancel', end);
+    base.addEventListener('lostpointercapture', end);
   }
 
   setEnabled(v) {

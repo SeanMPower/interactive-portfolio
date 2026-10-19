@@ -124,8 +124,8 @@ export class Submarine {
   /** @param input { forward, backward, left, right, up, down } booleans  @param dt fixed step */
   drive(input, dt) {
     const t = this.tuning;
-    const tgtPitch = (input.forward ? 1 : 0) - (input.backward ? 1 : 0);
-    const tgtYaw = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+    const tgtPitch = THREE.MathUtils.clamp((input.forward ? 1 : 0) - (input.backward ? 1 : 0) + (input.axisY || 0), -1, 1);
+    const tgtYaw = THREE.MathUtils.clamp((input.left ? 1 : 0) - (input.right ? 1 : 0) - (input.axisX || 0), -1, 1);
     const tgtLift = (input.up ? 1 : 0) - (input.down ? 1 : 0);
     this.in.pitch = THREE.MathUtils.damp(this.in.pitch, tgtPitch, t.inputEase, dt);
     this.in.yaw = THREE.MathUtils.damp(this.in.yaw, tgtYaw, t.inputEase, dt);

@@ -172,14 +172,15 @@ export class Pilot {
     this.grounded = feetY - ground < 0.3 && b.velocity.y < 2;
 
     this._dir.set(0, 0, 0)
-      .addScaledVector(this.screenUp, (input.forward ? 1 : 0) - (input.backward ? 1 : 0))
-      .addScaledVector(this.screenRight, (input.right ? 1 : 0) - (input.left ? 1 : 0));
-    const moving = this._dir.lengthSq() > 0;
-    if (moving) this._dir.normalize();
+      .addScaledVector(this.screenUp, (input.forward ? 1 : 0) - (input.backward ? 1 : 0) + (input.axisY || 0))
+      .addScaledVector(this.screenRight, (input.right ? 1 : 0) - (input.left ? 1 : 0) + (input.axisX || 0));
+    const moving = this._dir.lengthSq() > 0.0001;
+    let throttle = 1; // the joystick lets you jog: speed scales with how far you push
+    if (moving) { throttle = Math.min(1, this._dir.length()); this._dir.normalize(); }
 
     // horizontal velocity eases toward the target; less grip in the air
     const control = this.grounded ? 1 : 0.35;
-    const tx = this._dir.x * t.runSpeed, tz = this._dir.z * t.runSpeed;
+    const tx = this._dir.x * t.runSpeed * throttle, tz = this._dir.z * t.runSpeed * throttle;
     const k = Math.min(1, t.accel * control * dt / t.runSpeed);
     b.velocity.x += (tx - b.velocity.x) * k;
     b.velocity.z += (tz - b.velocity.z) * k;

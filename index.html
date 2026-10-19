@@ -61,17 +61,13 @@
 
     <!-- Touch controls -->
     <div id="touch">
-      <div class="pad left">
-        <button data-k="left">◀</button>
-        <button data-k="right">▶</button>
-      </div>
-      <div class="pad right">
-        <button data-k="forward">▲</button>
-        <button data-k="backward">▼</button>
+      <div id="stick" aria-label="Direction joystick">
+        <div id="stick-ring"></div>
+        <div id="stick-knob"></div>
       </div>
       <div class="pad alt">
-        <button data-k="up">⤒</button>
-        <button data-k="down">⤓</button>
+        <button data-k="up" aria-label="Climb">⤒</button>
+        <button data-k="down" aria-label="Descend">⤓</button>
       </div>
       <button id="touch-action" class="hidden">OPEN</button>
       <button id="touch-secondary" class="hidden">EXIT</button>
