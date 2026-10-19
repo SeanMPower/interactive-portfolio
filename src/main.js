@@ -6,6 +6,9 @@ import { Roads } from './world/Roads.js';
 import { Helicopter } from './world/Helicopter.js';
 import { Pilot } from './world/Pilot.js';
 import { Dock } from './world/Dock.js';
+import { Airbase, airbaseFlatSpots, airbaseAvoid } from './world/Airbase.js';
+import { Jet } from './world/Jet.js';
+import { AIRBASE } from './world/Airbase.js';
 import { Submarine } from './underwater/Submarine.js';
 import { Underwater } from './underwater/Underwater.js';
 import { Landmarks, padPositionFor, PAD_RADIUS } from './world/Landmarks.js';
@@ -66,9 +69,11 @@ for (const p of projects) {
   flatSpots.push(site, padSpot);
 }
 flatSpots.push({ x: 0, z: 0, radius: 14, height: 1.6 }); // spawn plateau
+const AIRBASE_SPOTS = airbaseFlatSpots();                     // the VTANG hangar + runway in the east corner
+flatSpots.push(...AIRBASE_SPOTS);
 
 const MAP = 520; // 4× the original area
-const LAKES = [{ x: -140, z: 50, radius: 40, depth: 4 }, { x: 70, z: 20, radius: 18, depth: 2.5 }, { x: 60, z: -170, radius: 22, depth: 3 }];
+const LAKES = [{ x: -140, z: 50, radius: 40, depth: 4 }, { x: 70, z: 20, radius: 18, depth: 2.5 }, { x: 150, z: 30, radius: 22, depth: 3 }]; // third lake moved east to make room for the runway
 const terrain = new Terrain({
   size: MAP,
   segments: 320,
@@ -90,8 +95,9 @@ const playground = projects.find((p) => p.id === 'playground');
 // Keep trees well clear of landmarks and pads, plus an extra clearing on the camera side (+x,+z)
 // so nothing stands between the camera and what you're flying toward.
 const CAM = Math.SQRT1_2;
-const avoid = [];
+const avoid = [...airbaseAvoid()];
 for (const s of flatSpots) {
+  if (AIRBASE_SPOTS.includes(s)) continue;
   avoid.push({ x: s.x, z: s.z, radius: s.radius + 9 });
   avoid.push({ x: s.x + CAM * 16, z: s.z + CAM * 16, radius: s.radius + 6 });
 }
@@ -102,6 +108,11 @@ const sub = new Submarine();
 sub.place(dock.moor, dock.moorYaw);
 scene.add(sub.group);
 const underwater = new Underwater(sub, camera);
+// The air base: hangar, apron and runway, with the jet parked inside
+const airbase = new Airbase(terrain, world, scene);
+const jet = new Jet(terrain, { onRunway: (x, z) => airbase.onRunway(x, z) });
+jet.place(airbase.park.x, airbase.park.z, airbase.park.yaw);
+scene.add(jet.group);
 const props = new Props(terrain, world, scene, {
   avoid,
   roads,
@@ -137,6 +148,8 @@ window.__pilot = pilot;
 window.__sub = sub;
 window.__underwater = underwater;
 window.__dock = dock;
+window.__jet = jet;
+window.__airbase = airbase;
 window.__ringRun = ringRun; // handy for poking at tuning from the console
 
 // ---------------------------------------------------------------- input / camera / ui
@@ -206,14 +219,16 @@ function overworldZone() {
   }
   markers.push({ x: dock.end.x, z: dock.end.z, kind: 'dock', label: 'Submarine dock', travel: { x: dock.center.x - Math.sin(dock.yaw) * 6, z: dock.center.z - Math.cos(dock.yaw) * 6 } });
   markers.push({ x: 0, z: 0, kind: 'spawn', label: 'Spawn' });
+  markers.push({ x: AIRBASE.hangar.x - 10, z: AIRBASE.hangar.z, kind: 'hangar', label: 'VTANG hangar', travel: { x: airbase.boardSpot.x, z: airbase.boardSpot.z } });
   for (const pk of terrain.peaks) if (pk.label) markers.push({ x: pk.x, z: pk.z, kind: 'peak', label: pk.name });
   const r0 = ringRun.rings[0].mesh.position;
   markers.push({ x: r0.x, z: r0.z, kind: 'ring', label: 'Ring Run start' });
-  const who = mode === 'heli' ? heli : pilot;
+  const who = mode === 'heli' ? heli : mode === 'jet' ? jet : pilot;
   return {
     id: 'overworld', title: 'The map', subtitle: 'Overworld', half: terrain.half, allowFreeTravel: true,
     heightAt: (x, z) => terrain.heightAt(x, z), colorFor: (h, s, x, z) => terrain.colorFor(h, s, x, z), paths: roads.paths, markers,
-    player: { x: who.position.x, z: who.position.z, yaw: who.yaw, kind: mode === 'heli' ? 'heli' : 'foot' },
+    strips: [{ x1: AIRBASE.runway.x1, z1: AIRBASE.runway.z, x2: AIRBASE.runway.x2, z2: AIRBASE.runway.z, width: AIRBASE.runway.width, color: '#3d4046' }],
+    player: { x: who.position.x, z: who.position.z, yaw: who.yaw, kind: mode === 'heli' ? 'heli' : mode === 'jet' ? 'jet' : 'foot' },
   };
 }
 function reefZone() {
@@ -228,7 +243,7 @@ function reefZone() {
 }
 function openMap() {
   if (overlay.isOpen || board.isOpen) return;
-  if (mode === 'exiting' || mode === 'boarding' || mode === 'subboarding' || mode === 'subexiting' || mode === 'diving' || mode === 'surfacing') return;
+  if (mode === 'exiting' || mode === 'boarding' || mode === 'subboarding' || mode === 'subexiting' || mode === 'diving' || mode === 'surfacing' || mode === 'jetboarding' || mode === 'jetexiting') return;
   mapView.toggle(() => (underwater.active ? reefZone() : overworldZone()));
 }
 document.getElementById('map-btn').addEventListener('click', openMap);
@@ -245,6 +260,9 @@ function travelTo(x, z, marker) {
     const floor = underwater.reef.heightAt(x, z);
     sub.place(new THREE.Vector3(x, Math.min(-4, floor + 4.5), z), sub.yaw); // low enough to scoop a pearl you aimed at
     followCam.snapTo(sub.position);
+  } else if (mode === 'jet') {
+    jet.place(x, z, jet.yaw, { airborne: true, altitude: 45, speed: Math.max(jet.speed, jet.tuning.cruise) });
+    followCam.snapTo(jet.position);
   } else if (mode === 'heli') {
     heli.reset(new THREE.Vector3(x, Math.max(terrain.heightAt(x, z), terrain.waterLevel) + 10, z), heli.yaw);
     followCam.snapTo(heli.position);
@@ -307,6 +325,10 @@ const canBoard = () => mode === 'foot' && Math.hypot(pilot.position.x - heli.pos
 const canBoardSub = () => mode === 'foot' && Math.hypot(pilot.position.x - dock.boardSpot.x, pilot.position.z - dock.boardSpot.z) < SUB_BOARD_RANGE;
 const canExitSub = () => mode === 'subdocked';
 const inSub = () => mode === 'sub' || mode === 'subdocked' || mode === 'diving' || mode === 'surfacing' || mode === 'subboarding' || mode === 'subexiting';
+const canBoardJet = () => mode === 'foot' && Math.hypot(pilot.position.x - jet.position.x, pilot.position.z - jet.position.z) < 7;
+const canExitJet = () => mode === 'jet' && jet.stopped;
+const inJet = () => mode === 'jet' || mode === 'jetboarding' || mode === 'jetexiting';
+const JET_CAM_SCALE = 1.35;
 
 /** A run in progress is void if you teleport or leave the helicopter. */
 function cancelRingRun(why) {
@@ -326,7 +348,7 @@ function startExit() {
       pilot.activate(step, outYaw);
       mode = 'foot';
       followCam.targetScale = FOOT_CAM_SCALE;
-      toast('On foot · WASD to run · Space to jump · F to climb back in · there\'s a submarine at the lake dock', 5);
+      toast('On foot · WASD to run · Space to jump · F to climb back in · there\'s a sub at the lake dock and a jet in the VTANG hangar', 5);
     },
   };
 }
@@ -400,6 +422,53 @@ function startSurface() {
   }, 750);
 }
 
+// ---- jet
+function jetSideSpot(out = new THREE.Vector3()) {
+  // on the ground beside the cockpit, left-hand side (ladder side)
+  const rx = Math.cos(jet.yaw), rz = -Math.sin(jet.yaw);
+  const fx = Math.sin(jet.yaw), fz = Math.cos(jet.yaw);
+  const gx = jet.position.x - rx * 4.5 + fx * 3, gz = jet.position.z - rz * 4.5 + fz * 3;
+  return out.set(gx, pilot.groundAt(gx, gz), gz);
+}
+function startBoardJet() {
+  const seat = jet.seatPoint();
+  pilot.deactivate();
+  mode = 'jetboarding';
+  const from = pilot.position.clone();
+  anim = {
+    t: 0, duration: 0.8, arc: 1.6, yaw: Math.atan2(seat.x - from.x, seat.z - from.z), from, to: seat.clone(),
+    onDone: () => {
+      pilot.group.visible = false;
+      mode = 'jet';
+      followCam.targetScale = JET_CAM_SCALE;
+      toast('Canopy down · W throttle · A/D steer · at speed, hold Space to rotate · F to get out when stopped', 6);
+    },
+  };
+}
+function startExitJet() {
+  const seat = jet.seatPoint();
+  mode = 'jetexiting';
+  pilot.group.visible = true;
+  pilot.group.position.copy(seat);
+  const to = jetSideSpot();
+  anim = {
+    t: 0, duration: 0.8, arc: 1.2, yaw: Math.atan2(to.x - seat.x, to.z - seat.z), from: seat.clone(), to,
+    onDone: () => {
+      pilot.activate(to, Math.atan2(to.x - seat.x, to.z - seat.z));
+      mode = 'foot';
+      followCam.targetScale = FOOT_CAM_SCALE;
+    },
+  };
+}
+function crashJet() {
+  const p = jet.position;
+  const gp = new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z) + 0.3, p.z);
+  for (let i = 0; i < 40; i++) dust.emit(gp, _vel.set(0, 0, 0), 2.2);
+  jet.place(airbase.park.x, airbase.park.z, airbase.park.yaw);
+  followCam.snapTo(jet.position);
+  toast('Crashed! Back to the hangar', 3);
+}
+
 /** Put the pilot back beside the helicopter (fell in a lake, off the map, pressed R). */
 function respawnPilot(msg) {
   const { step, outYaw } = cockpitPoints();
@@ -413,6 +482,8 @@ controls.onSecondary = () => {
   else if (canBoard()) startBoard();
   else if (canBoardSub()) startBoardSub();
   else if (canExitSub()) startExitSub();
+  else if (canBoardJet()) startBoardJet();
+  else if (canExitJet()) startExitJet();
 };
 
 controls.onEscape = () => { if (mapView.isOpen) mapView.close(); else if (board.isOpen) board.close(); else overlay.close(); };
@@ -420,6 +491,7 @@ controls.onReset = () => {
   if (board.isOpen) return;
   if (mode === 'foot') { respawnPilot(); hud.toast.classList.add('hidden'); return; }
   if (mode === 'sub') { sub.place(new THREE.Vector3(0, -7, -6), 0); followCam.snapTo(sub.position); hud.toast.classList.add('hidden'); return; }
+  if (mode === 'jet') { jet.place(airbase.park.x, airbase.park.z, airbase.park.yaw); followCam.snapTo(jet.position); hud.toast.classList.add('hidden'); return; }
   if (mode !== 'heli') return;
   const p = heli.position;
   const onMap = Math.abs(p.x) < terrain.half && Math.abs(p.z) < terrain.half && p.y > -20;
@@ -455,6 +527,9 @@ if (new URLSearchParams(location.search).has('debug')) {
   import('lil-gui').then(({ default: GUI }) => {
     const gui = new GUI({ title: 'Helicopter tuning' });
     const t = heli.tuning;
+    const j = gui.addFolder('Jet');
+    const jt = jet.tuning;
+    for (const [k, lo, hi, st] of [['taxiAccel', 2, 30, 0.1], ['rollDrag', 0.5, 15, 0.1], ['brake', 0, 20, 0.5], ['airAccel', 2, 40, 0.5], ['maxSpeed', 30, 150, 1], ['cruise', 20, 100, 1], ['takeoffSpeed', 10, 60, 1], ['stallSpeed', 5, 50, 1], ['turnRate', 0.3, 3, 0.05], ['maxPitch', 0.2, 1.2, 0.02], ['maxBank', 0, 1.5, 0.05], ['maxAltitude', 40, 300, 5], ['landSink', 2, 20, 0.5]]) j.add(jt, k, lo, hi, st);
     const f = gui.addFolder('Flight');
     f.add(t, 'forwardAccel', 5, 80, 1);
     f.add(t, 'backwardAccel', 5, 60, 1);
@@ -521,6 +596,7 @@ function frame(now) {
     while (accumulator >= FIXED && steps < 4) {
       heli.drive(mode === 'heli' ? controls.state : NO_INPUT, FIXED); // parked heli just keeps its rotors stopped
       if (mode === 'foot') pilot.drive(controls.state, FIXED);
+      if (mode === 'jet') jet.drive(controls.state, FIXED);
       if (mode === 'sub') underwater.step(controls.state, FIXED);
       world.step(FIXED);
       accumulator -= FIXED;
@@ -528,6 +604,13 @@ function frame(now) {
     }
     heli.sync(dt);
     pilot.sync(dt);
+    jet.sync(dt);
+    let jev;
+    while ((jev = jet.takeEvent())) {
+      if (jev === 'crash') crashJet();
+      else if (jev === 'takeoff') toast('Airborne · Space/Shift pitch · W/S throttle', 3);
+      else if (jev === 'landed') toast('Touchdown · S to brake · F to get out once stopped', 3);
+    }
 
     // hop out of / into the cockpit
     if (anim) {
@@ -583,8 +666,12 @@ function frame(now) {
   // whoever the player currently is: the helicopter, the pilot on foot, or the submarine
   const onFoot = mode !== 'heli';
   const subMode = inSub();
-  const player = subMode ? sub.position : onFoot ? pilot.position : heli.position;
-  if (mode === 'sub') _vel.copy(sub.velocity); else if (mode === 'foot') _vel.copy(pilot.body.velocity); else if (onFoot) _vel.set(0, 0, 0); else _vel.copy(heli.body.velocity);
+  const jetMode = inJet();
+  const player = subMode ? sub.position : jetMode ? jet.position : onFoot ? pilot.position : heli.position;
+  if (mode === 'sub') _vel.copy(sub.velocity);
+  else if (mode === 'jet') _vel.set(Math.sin(jet.yaw) * jet.speed, jet.vy, Math.cos(jet.yaw) * jet.speed);
+  else if (mode === 'foot') _vel.copy(pilot.body.velocity); else if (onFoot) _vel.set(0, 0, 0); else _vel.copy(heli.body.velocity);
+  airbase.update(dt, elapsed, underwater.active ? null : player);
   const focusItem = activeProject ? landmarks.get(activeProject.id) : null;
   followCam.update(player, _vel, dt, focusItem ? focusItem.group.position : null);
 
@@ -622,19 +709,19 @@ function frame(now) {
   }
 
   // get out / climb back in prompt (sits above the project prompt when both show)
-  const exit = canExit(), boardHeli = canBoard(), boardSub = canBoardSub(), exitSub = canExitSub();
-  const showSecondary = (exit || boardHeli || boardSub || exitSub) && !overlay.isOpen && !paused;
+  const exit = canExit(), boardHeli = canBoard(), boardSub = canBoardSub(), exitSub = canExitSub(), boardJet = canBoardJet(), exitJet = canExitJet();
+  const showSecondary = (exit || boardHeli || boardSub || exitSub || boardJet || exitJet) && !overlay.isOpen && !paused;
   hud.prompt2.classList.toggle('hidden', !showSecondary);
   hud.touchSecondary.classList.toggle('hidden', !showSecondary);
   hud.prompt2.classList.toggle('solo', !canOpen);
   hud.touchSecondary.classList.toggle('solo', !canOpen);
   if (showSecondary) {
-    hud.prompt2Text.textContent = exit ? 'Get out' : boardHeli ? 'Climb back in' : boardSub ? 'Board the submarine' : 'Climb out';
-    hud.touchSecondary.textContent = exit ? 'GET OUT' : boardHeli ? 'BOARD' : boardSub ? 'BOARD SUB' : 'CLIMB OUT';
+    hud.prompt2Text.textContent = exit ? 'Get out' : boardHeli ? 'Climb back in' : boardSub ? 'Board the submarine' : boardJet ? 'Climb into the jet' : exitJet ? 'Climb out' : 'Climb out';
+    hud.touchSecondary.textContent = exit ? 'GET OUT' : boardHeli ? 'BOARD' : boardSub ? 'BOARD SUB' : boardJet ? 'BOARD JET' : 'CLIMB OUT';
   }
 
-  hud.speed.textContent = Math.round(mode === 'sub' ? sub.speedKmh : mode === 'foot' ? pilot.speedKmh : onFoot ? 0 : heli.speedKmh);
-  hud.alt.textContent = Math.max(0, Math.round(underwater.active ? underwater.depth : onFoot ? 0 : heli.altitude));
+  hud.speed.textContent = Math.round(mode === 'sub' ? sub.speedKmh : mode === 'jet' ? jet.speedKmh : mode === 'foot' ? pilot.speedKmh : onFoot ? 0 : heli.speedKmh);
+  hud.alt.textContent = Math.max(0, Math.round(underwater.active ? underwater.depth : mode === 'jet' ? jet.altitude : onFoot ? 0 : heli.altitude));
   hud.altUnit.textContent = underwater.active ? 'm deep' : 'm alt';
   hud.pearlhunt.classList.toggle('hidden', !underwater.active);
   if (underwater.active) {

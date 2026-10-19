@@ -13,7 +13,7 @@
  * }
  */
 const SQ = Math.SQRT1_2;
-const ICONS = { project: '', pad: 'H', dock: '⚓', spawn: '⌂', peak: '▲', ring: '◎', pearl: '●', arch: '∩', wreck: '⛵', kelp: '🌿', coral: '🪸' };
+const ICONS = { project: '', pad: 'H', dock: '⚓', spawn: '⌂', peak: '▲', ring: '◎', pearl: '●', arch: '∩', wreck: '⛵', kelp: '🌿', coral: '🪸', hangar: '✈' };
 
 export class MapView {
   constructor({ onOpen, onClose, onTravel }) {
@@ -126,9 +126,17 @@ export class MapView {
       data.data[k] = Math.min(255, r * shade); data.data[k + 1] = Math.min(255, g * shade); data.data[k + 2] = Math.min(255, b * shade); data.data[k + 3] = 255;
     }
     ctx.putImageData(data, 0, 0);
+    const k = N / (2 * h);
+    // paved strips (the runway)
+    for (const st of zone.strips || []) {
+      ctx.lineCap = 'butt'; ctx.lineWidth = st.width * k; ctx.strokeStyle = st.color;
+      ctx.beginPath(); ctx.moveTo((st.x1 + h) * k, (st.z1 + h) * k); ctx.lineTo((st.x2 + h) * k, (st.z2 + h) * k); ctx.stroke();
+      ctx.lineWidth = 0.6 * k; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.setLineDash([3 * k, 3 * k]);
+      ctx.beginPath(); ctx.moveTo((st.x1 + h) * k, (st.z1 + h) * k); ctx.lineTo((st.x2 + h) * k, (st.z2 + h) * k); ctx.stroke();
+      ctx.setLineDash([]);
+    }
     // roads
     if (zone.paths) {
-      const k = N / (2 * h);
       ctx.lineCap = ctx.lineJoin = 'round';
       for (const [w, col] of [[3.2, 'rgba(90,70,45,0.55)'], [2, '#c9ad84']]) {
         ctx.lineWidth = w; ctx.strokeStyle = col;

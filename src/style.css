@@ -360,7 +360,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 .mk:hover .mk-dot { transform: scale(1.3); }
 .mk .mk-label { font-size: 0.68rem; font-weight: 700; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7); }
 .mk.dim { opacity: 0.45; }
-.mk-dock .mk-dot, .mk-spawn .mk-dot, .mk-arch .mk-dot, .mk-wreck .mk-dot { --mk: #e8c35e; font-size: 11px; }
+.mk-dock .mk-dot, .mk-spawn .mk-dot, .mk-arch .mk-dot, .mk-wreck .mk-dot, .mk-hangar .mk-dot { --mk: #e8c35e; font-size: 11px; }
 .mk-peak .mk-dot { --mk: #eeebe4; width: 14px; height: 14px; font-size: 9px; }
 .mk-ring .mk-dot { --mk: #7ee787; }
 .mk-pearl .mk-dot { --mk: #fff4d6; width: 14px; height: 14px; }
