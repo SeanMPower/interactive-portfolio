@@ -33,7 +33,7 @@ export class Controls {
         const k = map[e.code];
         if ((k === 'left' || k === 'right') && !e.repeat) {
           const now = e.timeStamp; // when the key was actually pressed, not when a slow frame got round to it
-          if (this._lastTap.key === k && now - this._lastTap.at < 320) { this.onDoubleTap?.(k === 'left' ? 1 : -1); this._lastTap.key = null; }
+          if (this._lastTap.key === k && now - this._lastTap.at < 320) { this.onDoubleTap?.(k === 'left' ? -1 : 1); this._lastTap.key = null; }
           else this._lastTap = { key: k, at: now };
         }
         this.state[k] = true; e.preventDefault();

@@ -231,7 +231,7 @@ export class Jet {
     this.altitude = p.y - ground - t.gearHeight;
   }
 
-  /** Barrel roll: a full 360° about the nose over ~0.9 s. Only in the air; dir +1 rolls left. */
+  /** Barrel roll: a full 360° about the nose over ~0.9 s. Only in the air; dir -1 rolls left (A), +1 right (D). */
   startRoll(dir) {
     if (this.state !== 'air' || this.roll) return false;
     this.roll = { dir, t: 0, duration: 0.9 };
