@@ -131,6 +131,7 @@ const ringRun = new RingRun(scene, terrain, {
   camera,                                                             // …and is clamped to the actual viewport (phones)
 });
 window.__heli = heli;
+window.__camera = camera;
 window.__pilot = pilot;
 window.__sub = sub;
 window.__underwater = underwater;
