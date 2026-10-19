@@ -1,6 +1,6 @@
 /**
  * Procedural engine sounds (Web Audio, no sample files):
- *   helicopter — a rotor "whop" (low-passed noise chopped at the blade-pass rate) plus a faint turbine hiss,
+ *   helicopter — just the rotor "whop": low-passed noise chopped at the blade-pass rate,
  *                both scaled by how fast the rotors are spinning; the whop slows as the rotors wind down
  *   jet        — turbine whine + broadband rush that rise with speed, and a low afterburner rumble under throttle
  * Everything is attenuated by distance from the player and muted underwater. The context is created on
@@ -37,12 +37,7 @@ export class Engines {
     h.lfoGain = ctx.createGain(); h.lfoGain.gain.value = 1;
     h.lfo.connect(h.lfoShape).connect(h.lfoGain).connect(h.chop.gain);
     h.src.connect(h.lp).connect(h.chop).connect(h.out);
-    // turbine hiss: a quiet band of noise rather than a tone (a steady tone reads as a hum)
-    h.src2 = ctx.createBufferSource(); h.src2.buffer = noise; h.src2.loop = true;
-    h.hissBp = ctx.createBiquadFilter(); h.hissBp.type = 'bandpass'; h.hissBp.frequency.value = 1800; h.hissBp.Q.value = 0.9;
-    h.hiss = ctx.createGain(); h.hiss.gain.value = 0;
-    h.src2.connect(h.hissBp).connect(h.hiss).connect(h.out);
-    h.src.start(); h.lfo.start(); h.src2.start();
+    h.src.start(); h.lfo.start();
 
     // ---------------- jet
     const j = (this.jet = {});
@@ -85,8 +80,6 @@ export class Engines {
     h.lp.frequency.setTargetAtTime(200 + sp * 160 + heli.lift * 120, t, k);
     h.chop.gain.setTargetAtTime(0.0, t, k);                              // base level, LFO adds the pulses
     h.lfoGain.gain.setTargetAtTime(0.7 + heli.lift * 0.3, t, k);
-    h.hiss.gain.setTargetAtTime(sp * 0.05, t, k);
-    h.hissBp.frequency.setTargetAtTime(1400 + sp * 900 + heli.lift * 300, t, k);
     // jet
     const j = this.jet;
     const s = jet.on ? Math.min(1, jet.speed / 80) : 0;
