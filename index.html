@@ -57,7 +57,8 @@
           <div id="pearl-hint" class="rr-sub"></div>
         </div>
       </div>
-      <button id="reset-btn" title="Reset truck (R)">↺</button>
+      <button id="reset-btn" title="Reset (R)">↺</button>
+      <button id="map-btn" type="button" title="Map (M)" aria-label="Map">🗺</button>
     </div>
 
     <!-- Dive / surface transition -->
@@ -94,6 +95,24 @@
         </div>
       </div>
       <div id="overlay-body"></div>
+    </div>
+
+    <!-- Map modal -->
+    <div id="map" class="hidden">
+      <div id="map-card" role="dialog" aria-labelledby="map-title">
+        <div class="map-bar">
+          <div>
+            <div class="rr-title" id="map-sub">Overworld</div>
+            <h2 id="map-title">Map</h2>
+          </div>
+          <button id="map-close" title="Close (Esc)" type="button">✕</button>
+        </div>
+        <div id="map-stage">
+          <canvas id="map-canvas"></canvas>
+          <div id="map-markers"></div>
+        </div>
+        <div id="map-hint" class="board-sub"></div>
+      </div>
     </div>
 
     <!-- Ring Run leaderboard modal -->

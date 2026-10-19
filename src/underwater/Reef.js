@@ -24,6 +24,7 @@ export class Reef {
   constructor(scene) {
     this.scene = scene;
     this.rocks = [];       // { x, y, z, r } collision spheres
+    this.pois = [];        // { x, z, kind, label } for the map
     this.rnd = seededRandom(99);
     this.half = REEF.size / 2;
     this._p = new THREE.Vector3(); this._q = new THREE.Quaternion(); this._s = new THREE.Vector3(); this._m = new THREE.Matrix4(); this._e = new THREE.Euler();
@@ -136,6 +137,7 @@ export class Reef {
 
     // two rock arches you can fly through
     for (const [ax, az, yaw, R] of [[40, -10, 0.6, 12], [-55, 25, -1.1, 9]]) {
+      this.pois.push({ x: ax, z: az, kind: 'arch', label: 'Rock arch' });
       const g = new THREE.Group();
       const base = this.heightAt(ax, az);
       g.position.set(ax, base, az);
@@ -172,6 +174,7 @@ export class Reef {
     this.kelp.castShadow = true;
     const palette = ['#3fae2e', '#6fcf2f', '#1f8f55', '#b8d82a', '#2aa88f'];
     const beds = [[-30, 40], [70, 20], [-80, -70], [20, -80], [100, 90], [-100, 60]];
+    for (const [bx, bz] of beds) this.pois.push({ x: bx, z: bz, kind: 'kelp', label: 'Kelp forest' });
     this.kelpData = [];
     const col = new THREE.Color();
     for (let i = 0; i < N; i++) {
@@ -217,6 +220,7 @@ export class Reef {
       { geo: fanGeo, colors: ['#9b3dff', '#ff3da6', '#1fe8ff'], n: 50, s: [1.0, 2.4] },
     ];
     const gardens = [[18, 24], [-40, -20], [55, 60], [-75, 45], [80, -60], [-25, -85], [0, 70], [-95, -5], [40, -45]];
+    for (const [gx, gz] of gardens) this.pois.push({ x: gx, z: gz, kind: 'coral', label: 'Coral garden' });
     const col = new THREE.Color();
     for (const t of types) {
       const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.7, flatShading: true, side: t.geo === fanGeo ? THREE.DoubleSide : THREE.FrontSide, });
@@ -291,6 +295,7 @@ export class Reef {
     const wood = new THREE.MeshStandardMaterial({ color: '#7a5a3a', roughness: 0.95, flatShading: true });
     const g = new THREE.Group();
     const x = -88, z = -32;
+    this.pois.push({ x, z, kind: 'wreck', label: 'Sunken rowboat' });
     g.position.set(x, this.heightAt(x, z) + 0.4, z);
     g.rotation.set(0.25, 0.7, -0.3);
     const hull = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.2, 7), wood);
@@ -300,6 +305,16 @@ export class Reef {
     g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     this.scene.add(g);
     this.rocks.push({ x, y: g.position.y, z, r: 3 });
+  }
+
+  /** Seabed colour for a known height, as [r, g, b] (for the map): sand on the high ground, teal in the deeps. */
+  colorFor(y, slope, x, z) {
+    const depth = THREE.MathUtils.clamp((-22 - y) / 10, 0, 1);
+    const c = new THREE.Color('#dcb96c').lerp(new THREE.Color('#2f7a9c'), depth * 0.85);
+    const patch = fbm(x * 0.03 + 9, z * 0.03 + 4, { octaves: 2, seed: 31 });
+    if (patch > 0.58) c.lerp(new THREE.Color('#5a9e6a'), Math.min(1, (patch - 0.58) * 6));
+    for (const r of this.rocks) if (r.r > 2.5 && Math.hypot(x - r.x, z - r.z) < r.r) c.set('#46617a');
+    return [c.r * 255, c.g * 255, c.b * 255];
   }
 
   // ---------------------------------------------------------------- collision

@@ -127,6 +127,12 @@ export class Terrain {
     return m;
   }
 
+  /** Ground colour for a known height/slope, as [r, g, b] 0..255 (the map samples heights on a grid first). */
+  colorFor(h, slope, x, z) {
+    const c = this.#colorFor(h, slope, x, z);
+    return [c.r * 255, c.g * 255, c.b * 255];
+  }
+
   #colorFor(h, slope, x, z) {
     const c = new THREE.Color();
     let i = 0;

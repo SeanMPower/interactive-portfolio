@@ -11,6 +11,7 @@ export class Controls {
     this.onAction = null; // E / tap "OPEN"
     this.onReset = null;  // R
     this.onSecondary = null; // F / tap "EXIT" or "BOARD" (get out of / back into the helicopter)
+    this.onMap = null;       // M
     this.onEscape = null;
 
     const map = {
@@ -30,6 +31,7 @@ export class Controls {
       if (e.code === 'KeyE' || e.code === 'Enter') this.onAction?.();
       if (e.code === 'KeyR') this.onReset?.();
       if (e.code === 'KeyF') this.onSecondary?.();
+      if (e.code === 'KeyM') this.onMap?.();
     });
     window.addEventListener('keyup', (e) => {
       if (map[e.code]) this.state[map[e.code]] = false;

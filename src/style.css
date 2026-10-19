@@ -78,6 +78,11 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   background: var(--panel); border-radius: 999px; padding: 0.5rem 1rem; font-weight: 600;
   border: 1px solid rgba(255,255,255,0.1);
 }
+#map-btn {
+  position: absolute; right: 1.25rem; top: 8.25rem; pointer-events: auto;
+  width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
+  background: var(--panel); font-size: 1.3rem; line-height: 1; cursor: pointer;
+}
 #reset-btn {
   position: absolute; right: 1.25rem; top: 4.75rem; pointer-events: auto; /* under the trophy button */
   width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
@@ -323,3 +328,44 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   #touch .pad.alt { gap: 10px; }
   #challenge { min-width: 0; padding: 0.45rem 0.7rem; }
 }
+
+/* ---------- Map modal ---------- */
+#map {
+  position: fixed; inset: 0; z-index: 35; display: grid; place-items: center;
+  background: rgba(8, 9, 14, 0.5); backdrop-filter: blur(3px); animation: fadeIn 0.2s ease;
+}
+#map-card {
+  position: relative; width: min(960px, calc(100% - 1.5rem)); height: min(900px, calc(100% - 1.5rem));
+  display: flex; flex-direction: column; align-items: center;
+  background: linear-gradient(180deg, rgba(28, 24, 18, 0.94), rgba(16, 18, 26, 0.96));
+  border: 1px solid rgba(255, 224, 150, 0.25); border-radius: 18px; padding: 0.9rem 0.75rem 0.75rem;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255, 224, 150, 0.12);
+}
+#map-card .map-bar { width: 100%; display: flex; align-items: flex-start; justify-content: space-between; padding: 0 0.4rem 0.4rem; }
+#map-card h2 { margin: 0.1rem 0 0; font-size: 1.3rem; }
+#map-close { pointer-events: auto; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--text); font-size: 1rem; cursor: pointer; }
+#map-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; width: 100%; }
+#map-canvas { display: block; cursor: crosshair; filter: drop-shadow(0 12px 24px rgba(0,0,0,0.45)); }
+#map-markers { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+#map-hint { margin-top: 0.5rem; font-size: 0.75rem; color: var(--muted); text-align: center; }
+.mk {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; border: 0; background: none; padding: 0; color: var(--text); font: inherit;
+  --mk: var(--accent);
+}
+.mk .mk-dot {
+  width: 18px; height: 18px; border-radius: 50%; background: var(--mk); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  display: grid; place-items: center; font-size: 10px; font-weight: 800; color: #1a1200; line-height: 1; transition: transform 0.12s;
+}
+.mk:hover .mk-dot { transform: scale(1.3); }
+.mk .mk-label { font-size: 0.68rem; font-weight: 700; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7); }
+.mk.dim { opacity: 0.45; }
+.mk-dock .mk-dot, .mk-spawn .mk-dot, .mk-arch .mk-dot, .mk-wreck .mk-dot { --mk: #e8c35e; font-size: 11px; }
+.mk-peak .mk-dot { --mk: #eeebe4; width: 14px; height: 14px; font-size: 9px; }
+.mk-ring .mk-dot { --mk: #7ee787; }
+.mk-pearl .mk-dot { --mk: #fff4d6; width: 14px; height: 14px; }
+.mk-kelp .mk-dot, .mk-coral .mk-dot { width: 20px; height: 20px; background: rgba(0,0,0,0.35); border-color: rgba(255,255,255,0.4); font-size: 12px; }
+.mk-player { pointer-events: none; z-index: 2; }
+.mk-player .mk-you { font-size: 20px; color: #ff4d6d; text-shadow: 0 0 6px rgba(0,0,0,0.9); display: inline-block; }
+.mk-player .mk-label { color: #ff4d6d; }
+@media (max-width: 600px) { #map-card { padding: 0.6rem 0.4rem 0.5rem; } #map-card h2 { font-size: 1.05rem; } .mk .mk-label { font-size: 0.6rem; } }

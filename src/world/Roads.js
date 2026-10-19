@@ -12,6 +12,7 @@ export class Roads {
   constructor(terrain, scene, routes, { width = 6, seed = 11 } = {}) {
     this.width = width;
     this.samples = [];
+    this.paths = [];      // one polyline per route, for the map
     const rand = seededRandom(seed);
     const positions = [], colors = [], indices = [];
     const col = new THREE.Color();
@@ -39,6 +40,7 @@ export class Roads {
       if (!route.closed) pts.push(new THREE.Vector3(stops[stops.length - 1].x, 0, stops[stops.length - 1].z));
       const curve = new THREE.CatmullRomCurve3(pts, !!route.closed, 'centripetal', 0.5);
 
+      this.paths.push(curve.getSpacedPoints(120).map((p) => ({ x: p.x, z: p.z })));
       const N = Math.max(200, Math.round(curve.getLength() / 2.5));
       const hw = width / 2;
       for (let i = 0; i <= N; i++) {

@@ -15,6 +15,7 @@ import { Controls } from './Controls.js';
 import { FollowCamera } from './Camera.js';
 import { Overlay } from './ui/Overlay.js';
 import { Leaderboard } from './ui/Leaderboard.js';
+import { MapView } from './ui/MapView.js';
 import { RingRun, fmtTime } from './world/RingRun.js';
 
 const HOVER_TO_OPEN = 12; // metres above a pad at which the "open" prompt appears
@@ -190,6 +191,72 @@ const board = new Leaderboard({
   onClose: () => { paused = pausedBeforeBoard; controls.setEnabled(!paused); },
 });
 document.getElementById('rr-board').addEventListener('click', () => { if (!overlay.isOpen) board.show(); });
+
+// ---------------------------------------------------------------- map
+let pausedBeforeMap = false;
+const mapView = new MapView({
+  onOpen: () => { pausedBeforeMap = paused; paused = true; controls.setEnabled(false); },
+  onClose: () => { paused = pausedBeforeMap; controls.setEnabled(!paused); },
+  onTravel: (x, z, marker) => travelTo(x, z, marker),
+});
+function overworldZone() {
+  const markers = [];
+  for (const it of landmarks.items) {
+    markers.push({ x: it.project.position[0], z: it.project.position[1], kind: 'project', label: it.project.title, color: it.project.color, dim: false, travel: { x: it.pad.x, z: it.pad.z }, title: `Travel to ${it.project.title}` });
+  }
+  markers.push({ x: dock.end.x, z: dock.end.z, kind: 'dock', label: 'Submarine dock', travel: { x: dock.center.x - Math.sin(dock.yaw) * 6, z: dock.center.z - Math.cos(dock.yaw) * 6 } });
+  markers.push({ x: 0, z: 0, kind: 'spawn', label: 'Spawn' });
+  for (const pk of terrain.peaks) if (pk.label) markers.push({ x: pk.x, z: pk.z, kind: 'peak', label: pk.name });
+  const r0 = ringRun.rings[0].mesh.position;
+  markers.push({ x: r0.x, z: r0.z, kind: 'ring', label: 'Ring Run start' });
+  const who = mode === 'heli' ? heli : pilot;
+  return {
+    id: 'overworld', title: 'The map', subtitle: 'Overworld', half: terrain.half, allowFreeTravel: true,
+    heightAt: (x, z) => terrain.heightAt(x, z), colorFor: (h, s, x, z) => terrain.colorFor(h, s, x, z), paths: roads.paths, markers,
+    player: { x: who.position.x, z: who.position.z, yaw: who.yaw, kind: mode === 'heli' ? 'heli' : 'foot' },
+  };
+}
+function reefZone() {
+  const reef = underwater.reef;
+  const markers = reef.pois.map((p) => ({ ...p, title: p.label, label: p.kind === 'arch' || p.kind === 'wreck' ? p.label : '' }));
+  reef.pearls.forEach((p) => markers.push({ x: p.group.position.x, z: p.group.position.z, kind: 'pearl', dim: p.found, title: p.found ? 'Pearl (found)' : 'Pearl', label: '' }));
+  return {
+    id: 'reef', title: 'The reef', subtitle: 'Underwater', half: reef.half * 0.86, allowFreeTravel: true,
+    heightAt: (x, z) => reef.heightAt(x, z), colorFor: (h, s, x, z) => reef.colorFor(h, s, x, z), markers,
+    player: { x: sub.position.x, z: sub.position.z, yaw: sub.yaw, kind: 'sub' },
+  };
+}
+function openMap() {
+  if (overlay.isOpen || board.isOpen) return;
+  if (mode === 'exiting' || mode === 'boarding' || mode === 'subboarding' || mode === 'subexiting' || mode === 'diving' || mode === 'surfacing') return;
+  mapView.toggle(() => (underwater.active ? reefZone() : overworldZone()));
+}
+document.getElementById('map-btn').addEventListener('click', openMap);
+// paint both maps during idle time after start so the first open is instant
+const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
+idle(() => mapView.prerender(overworldZone()));
+idle(() => mapView.prerender(reefZone()));
+controls.onMap = openMap;
+window.__mapView = mapView; window.__zones = { over: overworldZone, reef: reefZone };
+/** Teleport whoever the player currently is to (x, z). */
+function travelTo(x, z, marker) {
+  if (underwater.active) {
+    if (mode !== 'sub') return;
+    const floor = underwater.reef.heightAt(x, z);
+    sub.place(new THREE.Vector3(x, Math.min(-4, floor + 4.5), z), sub.yaw); // low enough to scoop a pearl you aimed at
+    followCam.snapTo(sub.position);
+  } else if (mode === 'heli') {
+    heli.reset(new THREE.Vector3(x, Math.max(terrain.heightAt(x, z), terrain.waterLevel) + 10, z), heli.yaw);
+    followCam.snapTo(heli.position);
+  } else if (mode === 'foot') {
+    if (terrain.isWater(x, z) && !marker) { toast("Can't walk there — that's water", 2.5); return; }
+    pilot.teleport(new THREE.Vector3(x, pilot.groundAt(x, z), z));
+    followCam.snapTo(pilot.position);
+  } else if (mode === 'subdocked') { toast('Dive first, or climb out, to travel', 2.5); return; }
+  else return;
+  hud.toast.classList.add('hidden');
+  if (marker?.label) toast(marker.label, 1.8);
+}
 // Challenge panel: closed by default; the trophy toggles it, and it pops open on its own when a run starts or you dive
 let challengeOpen = false;
 function setChallenge(open) {
@@ -340,7 +407,7 @@ controls.onSecondary = () => {
   else if (canExitSub()) startExitSub();
 };
 
-controls.onEscape = () => { if (board.isOpen) board.close(); else overlay.close(); };
+controls.onEscape = () => { if (mapView.isOpen) mapView.close(); else if (board.isOpen) board.close(); else overlay.close(); };
 controls.onReset = () => {
   if (board.isOpen) return;
   if (mode === 'foot') { respawnPilot(); hud.toast.classList.add('hidden'); return; }
