@@ -20,6 +20,8 @@ export const PEARLS = [
   [34, 18], [-48, 30], [62, -40], [-20, -62], [90, 55], [-88, -30], [10, 95], [-70, 80],
 ];
 
+const SUB_REACH = 2.6 + 1.6; // sub hull radius + a little room: a pearl needs this much clear water around it
+
 export class Reef {
   constructor(scene) {
     this.scene = scene;
@@ -33,9 +35,9 @@ export class Reef {
     this.#buildRocks();
     this.#buildKelp();
     this.#buildCoral();
-    this.#buildPearls();
-    this.#buildFish();
     this.#buildWreck();
+    this.#buildPearls();   // after everything with a collider, so pearls can be kept clear of them
+    this.#buildFish();
   }
 
   // ---------------------------------------------------------------- terrain
@@ -247,7 +249,8 @@ export class Reef {
   #buildPearls() {
     const pearlMat = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff4d6', emissiveIntensity: 0.9, roughness: 0.2, metalness: 0.1 });
     const shellMat = new THREE.MeshStandardMaterial({ color: '#f0b7d8', roughness: 0.6, flatShading: true });
-    this.pearls = PEARLS.map(([x, z], i) => {
+    this.pearls = PEARLS.map(([px, pz], i) => {
+      const [x, z] = this.#clearSpot(px, pz, SUB_REACH);
       const g = new THREE.Group();
       g.position.set(x, this.heightAt(x, z) + 0.1, z);
       const pearl = new THREE.Mesh(new THREE.SphereGeometry(0.85, 18, 14), pearlMat);
@@ -262,6 +265,23 @@ export class Reef {
       this.scene.add(g);
       return { group: g, pearl, found: false, i };
     });
+  }
+
+  /** Nearest point to (x, z) that no rock/arch/wreck collider comes within `clearance` of (so the sub can reach it). */
+  #clearSpot(x, z, clearance) {
+    const blocked = (qx, qz) => {
+      const qy = this.heightAt(qx, qz) + 1;
+      return this.rocks.some((r) => Math.hypot(qx - r.x, qy - r.y, qz - r.z) < r.r + clearance);
+    };
+    if (!blocked(x, z)) return [x, z];
+    for (let d = 3; d < 60; d += 3) {
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2 + d * 0.3;
+        const qx = x + Math.cos(a) * d, qz = z + Math.sin(a) * d;
+        if (Math.abs(qx) < this.half * 0.8 && Math.abs(qz) < this.half * 0.8 && !blocked(qx, qz)) return [qx, qz];
+      }
+    }
+    return [x, z];
   }
 
   // ---------------------------------------------------------------- fish
@@ -347,11 +367,13 @@ export class Reef {
     return push;
   }
 
-  collect(pos, reach = 4) {
+  collect(pos, reach = 5.5) {
     let n = 0;
     for (const p of this.pearls) {
       if (p.found) continue;
-      if (pos.distanceTo(p.group.position) < reach) { p.found = true; p.group.visible = false; n++; }
+      // measured to the pearl itself (a metre above the shell), since the hull has to stay ~3 m off the seabed
+      const dx = pos.x - p.group.position.x, dy = pos.y - (p.group.position.y + 1), dz = pos.z - p.group.position.z;
+      if (Math.hypot(dx, dy, dz) < reach) { p.found = true; p.group.visible = false; n++; }
     }
     return n;
   }
