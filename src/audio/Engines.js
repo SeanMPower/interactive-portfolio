@@ -74,6 +74,19 @@ export class Engines {
     j.roarSrc.start(); j.rumSrc.start(); j.whSrc.start(); j.rushSrc.start(); j.flutter.start();
   }
 
+  /** A short balloon pop: a click of noise with a quick low-pass sweep; combos pitch it up a little. */
+  pop(combo = 1) {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource(); src.buffer = this._popBuf || (this._popBuf = this.#noiseBuffer(0.25));
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2;
+    const f0 = 900 + Math.min(combo, 6) * 120;
+    bp.frequency.setValueAtTime(f0 * 2.2, t); bp.frequency.exponentialRampToValueAtTime(f0 * 0.5, t + 0.12);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    src.connect(bp).connect(g).connect(this.master);
+    src.start(t); src.stop(t + 0.2);
+  }
+
   setEnabled(on) {
     this.enabled = on;
     localStorage.setItem('sound', on ? 'on' : 'off');

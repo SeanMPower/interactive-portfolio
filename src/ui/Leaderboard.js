@@ -2,6 +2,7 @@ import { fetchScores, submitScore, cleanInitials, isRemote } from '../leaderboar
 import { fmtTime } from '../world/RingRun.js';
 
 const INITIALS_KEY = 'ringrun-initials';
+const COURSES = { ringrun: { title: 'Ring Run', done: 'Course complete' }, balloons: { title: 'Balloon Burst', done: 'All balloons popped' } };
 const TOP = 10;
 
 /**
@@ -27,6 +28,9 @@ export class Leaderboard {
     this.highlight = null;   // date of the entry to highlight after a submit
     this.scores = null;      // last fetched top list (used to project a rank before submitting)
     this.open = false;
+    this.course = 'ringrun';
+    this.courseEl = document.querySelector('#board .board-bar .rr-title');
+    this.doneEl = document.querySelector('#board .board-done');
 
     document.getElementById('board-close').addEventListener('click', () => this.close());
     this.el.addEventListener('click', (e) => { if (e.target === this.el) this.close(); });
@@ -57,8 +61,19 @@ export class Leaderboard {
   get isOpen() { return this.open; }
   get initials() { return cleanInitials(this.boxes.map((b) => b.value).join('')); }
 
+  /** Switch which course the modal shows/submits to. */
+  setCourse(course) {
+    if (course === this.course) return;
+    this.course = course;
+    this.scores = null;
+    this.highlight = null;
+    this.courseEl.textContent = COURSES[course]?.title || course;
+    this.doneEl.textContent = COURSES[course]?.done || 'Complete';
+  }
+
   /** Open the list only. */
-  show() {
+  show(course = this.course) {
+    this.setCourse(course);
     this.pendingMs = null;
     this.entryEl.classList.add('hidden');
     this.#open();
@@ -66,7 +81,8 @@ export class Leaderboard {
   }
 
   /** Open in entry mode for a just-finished run. */
-  promptEntry(timeMs) {
+  promptEntry(timeMs, course = this.course) {
+    this.setCourse(course);
     this.pendingMs = Math.round(timeMs);
     this.timeEl.textContent = fmtTime(this.pendingMs / 1000);
     this.rankEl.textContent = this.#projectedRank();
@@ -94,7 +110,7 @@ export class Leaderboard {
     this.submitBtn.disabled = true;
     this.submitBtn.textContent = 'Saving…';
     try {
-      const { rank, entry, scores } = await submitScore(initials, this.pendingMs);
+      const { rank, entry, scores } = await submitScore(initials, this.pendingMs, this.course);
       localStorage.setItem(INITIALS_KEY, initials);
       this.pendingMs = null;
       this.highlight = entry.date;
@@ -133,7 +149,7 @@ export class Leaderboard {
   async #load(render) {
     if (render && !this.scores) this.#render([], 'Loading…');
     try {
-      this.scores = await fetchScores();
+      this.scores = await fetchScores(this.course);
       if (render) this.#render(this.scores);
     } catch (err) {
       console.warn('[leaderboard]', err);

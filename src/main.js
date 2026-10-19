@@ -8,6 +8,7 @@ import { Pilot } from './world/Pilot.js';
 import { Dock } from './world/Dock.js';
 import { Airbase, airbaseFlatSpots, airbaseAvoid } from './world/Airbase.js';
 import { Jet } from './world/Jet.js';
+import { BalloonBurst } from './world/BalloonBurst.js';
 import { AIRBASE } from './world/Airbase.js';
 import { Submarine } from './underwater/Submarine.js';
 import { Underwater } from './underwater/Underwater.js';
@@ -151,6 +152,8 @@ window.__sub = sub;
 window.__underwater = underwater;
 window.__dock = dock;
 window.__jet = jet;
+const balloons = new BalloonBurst(scene, terrain);
+window.__balloons = balloons;
 window.__airbase = airbase;
 window.__ringRun = ringRun; // handy for poking at tuning from the console
 
@@ -178,6 +181,16 @@ const hud = {
   challenge: document.getElementById('challenge'),
   trophy: document.getElementById('trophy-btn'),
   pearlhunt: document.getElementById('pearlhunt'),
+  bb: document.getElementById('balloonburst'),
+  bbIdle: document.getElementById('bb-idle'),
+  bbLive: document.getElementById('bb-live'),
+  bbDone: document.getElementById('bb-done'),
+  bbChevron: document.getElementById('bb-chevron'),
+  bbCount: document.getElementById('bb-count'),
+  bbTime: document.getElementById('bb-time'),
+  bbHint: document.getElementById('bb-hint'),
+  bbResult: document.getElementById('bb-result'),
+  bbSummary: document.getElementById('bb-summary'),
   pearlsVal: document.getElementById('pearls-val'),
   pearlHint: document.getElementById('pearl-hint'),
   pearlArrow: document.getElementById('pearl-arrow'),
@@ -255,7 +268,18 @@ const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
 idle(() => mapView.prerender(overworldZone()));
 idle(() => mapView.prerender(reefZone()));
 controls.onMap = openMap;
-controls.onDoubleTap = (dir) => { if (mode === 'jet' && !paused) jet.startRoll(dir); };
+controls.onDoubleTap = (dir) => { if (mode === 'jet' && !paused && jet.startRoll(dir)) balloons.noteRoll(elapsed); };
+// Balloon Burst controls (the balloons only exist once you start the game from the jet)
+document.getElementById('bb-start').addEventListener('click', () => { if (mode === 'jet') { balloons.start(); toast(`${balloons.total} balloons are up · pop them all!`, 3); } });
+document.getElementById('bb-quit').addEventListener('click', () => cancelBalloons('you gave up'));
+document.getElementById('bb-again').addEventListener('click', () => { if (mode === 'jet') balloons.start(); });
+document.getElementById('bb-board').addEventListener('click', () => { if (!overlay.isOpen) board.show('balloons'); });
+function cancelBalloons(why) {
+  if (balloons.state === 'idle') return;
+  const wasRunning = balloons.state === 'running';
+  balloons.abort();
+  if (wasRunning && why) toast(`Balloon Burst cancelled · ${why}`, 2.5);
+}
 window.__mapView = mapView; window.__zones = { over: overworldZone, reef: reefZone };
 /** Teleport whoever the player currently is to (x, z). */
 function travelTo(x, z, marker) {
@@ -286,6 +310,7 @@ function travelTo(x, z, marker) {
   hud.toast.classList.add('hidden');
   if (marker?.label) toast(marker.label, 1.8);
   cancelRingRun('you used the map');
+  if (mode === 'jet') cancelBalloons('you used the map');
 }
 // Challenge panel: closed by default; the trophy toggles it, and it pops open on its own when a run starts or you dive
 let challengeOpen = false;
@@ -457,6 +482,7 @@ function startBoardJet() {
   };
 }
 function startExitJet() {
+  cancelBalloons('you got out');
   const seat = jet.seatPoint();
   mode = 'jetexiting';
   pilot.group.visible = true;
@@ -472,6 +498,7 @@ function startExitJet() {
   };
 }
 function crashJet() {
+  cancelBalloons('you crashed');
   const p = jet.position;
   const gp = new THREE.Vector3(p.x, terrain.heightAt(p.x, p.z) + 0.3, p.z);
   for (let i = 0; i < 40; i++) dust.emit(gp, _vel.set(0, 0, 0), 2.2);
@@ -668,6 +695,21 @@ function frame(now) {
       dust.emit(gp, _vel, 0.9 * (1 - heli.altitude / 8) * heli.spool);
     }
     // ring run
+    // balloon burst (jet mini-game)
+    if (balloons.state !== 'idle' || balloons.bursts.length) {
+      let bev;
+      while ((bev = balloons.update(jet.position, dt, elapsed))) {
+        if (bev === 'start') toast('Clock running · pop them all', 1.5);
+        else if (bev === 'pop') engines.pop?.();
+        else if (bev === 'combo') { engines.pop?.(balloons.combo); toast(`×${balloons.combo} combo · −1 s`, 1.0); }
+        else if (bev === 'style') toast('Style! −2 s', 1.2);
+        else if (bev === 'finish') {
+          const t = balloons.lastResult;
+          toast(`All popped · ${fmtTime(t)} (−${balloons.bonus}s bonus)`, 4);
+          setTimeout(() => { if (!overlay.isOpen && !board.isOpen) board.promptEntry(t * 1000, 'balloons'); }, 900);
+        }
+      }
+    }
     const rr = ringRun.update(heli.position, dt, elapsed);
     if (rr === 'start') { toast('Go! Follow the glowing rings', 2.5); setChallenge(true); }
     else if (rr === 'ring') toast(`Ring ${ringRun.next} of ${ringRun.total}`, 1.2);
@@ -757,8 +799,29 @@ function frame(now) {
     }
     hud.pearlArrow.classList.toggle('hidden', !np);
   }
-  hud.rr.classList.toggle('hidden', underwater.active);
-  hud.trophy.classList.toggle('live', ringRun.state === 'running' && !underwater.active);
+  hud.rr.classList.toggle('hidden', underwater.active || jetMode);
+  hud.bb.classList.toggle('hidden', !jetMode);
+  if (jetMode) {
+    hud.bbIdle.classList.toggle('hidden', balloons.state !== 'idle');
+    hud.bbLive.classList.toggle('hidden', balloons.state !== 'running');
+    hud.bbDone.classList.toggle('hidden', balloons.state !== 'done');
+    if (balloons.state === 'running') {
+      hud.bbCount.textContent = `${balloons.popped}/${balloons.total}`;
+      hud.bbTime.textContent = fmtTime(balloons.time);
+      const nb = balloons.nearest(jet.position);
+      if (nb) {
+        const dx = Math.sin(nb.angle), dz = Math.cos(nb.angle);
+        const sx = (dx - dz) / Math.SQRT2, sy = (-dx - dz) / Math.SQRT2;
+        hud.bbChevron.style.transform = `rotate(${(Math.atan2(sx, sy) * 180) / Math.PI - 90}deg)`;
+        hud.bbHint.textContent = `${balloons.started ? '' : 'Clock starts on the first pop · '}nearest ${Math.round(nb.distance)} m ${nb.altitude > 6 ? '↑' : nb.altitude < -6 ? '↓' : '→'}${balloons.combo > 1 ? ` · ×${balloons.combo}` : ''}`;
+      }
+    } else if (balloons.state === 'done') {
+      hud.bbResult.textContent = fmtTime(balloons.lastResult);
+      hud.bbSummary.textContent = `best combo ×${balloons.bestCombo} · ${balloons.styleRolls} style roll${balloons.styleRolls === 1 ? '' : 's'} · −${balloons.bonus}s`;
+    }
+  }
+  // the trophy pulses while a run is live — and whenever you're in the jet, to say a game's on offer
+  hud.trophy.classList.toggle('live', (ringRun.state === 'running' && !underwater.active) || mode === 'jet');
   // ring-run panel: chevron points toward the next ring in screen space (camera looks from +x,+z)
   const b = ringRun.bearingTo(heli.position);
   if (b) {
