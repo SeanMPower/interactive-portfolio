@@ -220,8 +220,8 @@ function overworldZone() {
   }
   markers.push({ x: dock.end.x, z: dock.end.z, kind: 'dock', label: 'Submarine dock', travel: { x: dock.center.x - Math.sin(dock.yaw) * 6, z: dock.center.z - Math.cos(dock.yaw) * 6 } });
   markers.push({ x: 0, z: 0, kind: 'spawn', label: 'Spawn' });
-  markers.push({ x: AIRBASE.hangar.x - 10, z: AIRBASE.hangar.z, kind: 'hangar', label: 'VTANG hangar', travel: { x: airbase.boardSpot.x, z: airbase.boardSpot.z } });
-  markers.push({ x: airbase.pad.x, z: airbase.pad.z, kind: 'pad', label: '', title: 'Air base helipad' });
+  // on foot you land inside next to the jet; in the helicopter you go to the base helipad
+  markers.push({ x: AIRBASE.hangar.x - 10, z: AIRBASE.hangar.z, kind: 'hangar', label: 'VTANG hangar', travel: { x: airbase.boardSpot.x, z: airbase.boardSpot.z }, heliTravel: { x: airbase.pad.x, z: airbase.pad.z } });
   for (const pk of terrain.peaks) if (pk.label) markers.push({ x: pk.x, z: pk.z, kind: 'peak', label: pk.name });
   const r0 = ringRun.rings[0].mesh.position;
   markers.push({ x: r0.x, z: r0.z, kind: 'ring', label: 'Ring Run start' });
@@ -266,10 +266,13 @@ function travelTo(x, z, marker) {
     jet.place(x, z, jet.yaw, { airborne: true, altitude: 45, speed: Math.max(jet.speed, jet.tuning.cruise) });
     followCam.snapTo(jet.position);
   } else if (mode === 'heli') {
-    // the helicopter prefers a helipad: if there's one near the chosen spot (the hangar's pad, say), hover over it
-    let best = null, bd = 40;
-    for (const pd of padColliders) { const d = Math.hypot(pd.x - x, pd.z - z); if (d < bd) { bd = d; best = pd; } }
-    if (best) { x = best.x; z = best.z; }
+    // the helicopter prefers a helipad: a marker can name one, and a free tap near a pad snaps to it
+    if (marker?.heliTravel) { x = marker.heliTravel.x; z = marker.heliTravel.z; }
+    else {
+      let best = null, bd = 40;
+      for (const pd of padColliders) { const d = Math.hypot(pd.x - x, pd.z - z); if (d < bd) { bd = d; best = pd; } }
+      if (best) { x = best.x; z = best.z; }
+    }
     heli.reset(new THREE.Vector3(x, Math.max(terrain.heightAt(x, z), terrain.waterLevel) + 10, z), heli.yaw);
     followCam.snapTo(heli.position);
   } else if (mode === 'foot') {
