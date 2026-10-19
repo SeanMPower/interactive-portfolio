@@ -112,24 +112,26 @@ export class Airbase {
     for (const sx of [-1, 1]) box(5, H - 3, T, wallDark, sx * (W / 2 - 2.5), (H - 3) / 2, -D / 2); // door jambs
     // slid-open door leaves, parked along the outside of each side wall
     for (const sx of [-1, 1]) box(T, H - 3.4, 11, trim, sx * (W / 2 + 0.7), (H - 3.4) / 2, -D / 2 + 5);
-    // shallow gable roof, two slabs
+    // shallow gable roof, two slabs; the camera-side slab (local -x → world +z) carries the lettering
+    const tex = makeRoofText('VTANG');
+    const labelMat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2 });
+    this.shellMats.push(labelMat);
     for (const sx of [-1, 1]) {
       const r = new THREE.Mesh(new THREE.BoxGeometry(W / 2 + 1.5, 0.5, D + 2), roofMat);
       r.position.set(sx * (W / 4), H + 1.1, 0);
       r.rotation.z = -sx * 0.12;
       r.castShadow = r.receiveShadow = true;
       g.add(r);
+      if (sx === -1) {
+        // painted on the slab itself, so it tilts with the roof: the baseline runs along the ridge
+        // (slab-local z = world x) and the tops of the letters point up the slope toward the ridge
+        const label = new THREE.Mesh(new THREE.PlaneGeometry(D - 2, (D - 2) * 0.344), labelMat);
+        label.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
+        label.position.set(0.6, 0.27, 0);
+        r.add(label);
+      }
     }
     box(1.2, 1.0, D + 2, wallDark, 0, H + 3.4, 0);                // ridge cap
-    // roof lettering: a canvas texture draped over the ridge, rotated so it reads from the camera
-    const tex = makeRoofText('VTANG');
-    const labelMat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2 });
-    this.shellMats.push(labelMat);
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.25, W * 0.42), labelMat);
-    label.rotation.x = -Math.PI / 2;
-    label.rotation.z = -Math.PI / 4; // with the group's 90° turn this puts text-up at world (-1,-1): screen-up for the camera
-    label.position.set(0, H + 4.0, 0);
-    g.add(label);
     // a couple of interior lights hanging from the roof
     for (const z of [-D / 4, D / 4]) {
       const lamp = new THREE.PointLight('#fff2cc', 40, 40, 1.6);

@@ -46,75 +46,107 @@ export class Jet {
 
   // ---------------------------------------------------------------- model
   #buildVisual() {
-    const grey = new THREE.MeshStandardMaterial({ color: '#8d9298', roughness: 0.55, metalness: 0.35 });
-    const greyDark = new THREE.MeshStandardMaterial({ color: '#676d74', roughness: 0.6, metalness: 0.35 });
+    const grey = new THREE.MeshStandardMaterial({ color: '#8f949a', roughness: 0.5, metalness: 0.4 });
+    const greyDark = new THREE.MeshStandardMaterial({ color: '#6b7178', roughness: 0.55, metalness: 0.4 });
     const dark = new THREE.MeshStandardMaterial({ color: '#2a2e34', roughness: 0.7 });
-    const canopy = new THREE.MeshStandardMaterial({ color: '#c89a3c', roughness: 0.1, metalness: 0.6, transparent: true, opacity: 0.8, emissive: '#5a3c10', emissiveIntensity: 0.25 });
-    const nozzle = new THREE.MeshStandardMaterial({ color: '#3a3d42', roughness: 0.5, metalness: 0.7 });
+    const canopy = new THREE.MeshPhysicalMaterial({ color: '#b98a34', roughness: 0.08, metalness: 0.5, transparent: true, opacity: 0.82, clearcoat: 1, clearcoatRoughness: 0.1, emissive: '#4a3010', emissiveIntensity: 0.3 });
+    const nozzle = new THREE.MeshStandardMaterial({ color: '#3a3d42', roughness: 0.45, metalness: 0.75, side: THREE.DoubleSide });
     this.flameMat = new THREE.MeshBasicMaterial({ color: '#ff9a2e', transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false });
 
     this.group = new THREE.Group();   // position + yaw
     this.tilt = new THREE.Group();    // pitch + roll
     this.group.add(this.tilt);
     const T = this.tilt;
-    const mesh = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; T.add(m); return m; };
+    const add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; T.add(m); return m; };
 
-    // fuselage: a blended body — wide flat centre, chined nose, tapering tail. Nose at +z.
-    const body = mesh(new THREE.BoxGeometry(2.9, 1.4, 8.0), grey, 0, 0, 0.4);
-    const upper = mesh(new THREE.BoxGeometry(1.9, 0.8, 9.0), grey, 0, 0.8, 0.2);
-    const nose = mesh(new THREE.ConeGeometry(1.15, 5.8, 4), grey, 0, 0.15, 7.2);
-    nose.rotation.x = Math.PI / 2; nose.rotation.z = Math.PI / 4; nose.scale.set(1.25, 0.75, 1); // chined, flattened
-    const radome = mesh(new THREE.ConeGeometry(0.36, 1.2, 4), dark, 0, 0.15, 10.5);
-    radome.rotation.x = Math.PI / 2; radome.rotation.z = Math.PI / 4; radome.scale.set(1.25, 0.75, 1);
-    const tail = mesh(new THREE.BoxGeometry(2.6, 1.3, 4.5), greyDark, 0, 0.05, -5.2);
-    tail.scale.set(1, 0.9, 1);
-    // intakes: angular boxes either side under the wing root
+    // ---- fuselage: a smooth loft through cross-sections (superellipses: round at the nose, squarer
+    //      amidships, with a chine where the flatter top meets the deeper belly). Nose at +z.
+    //      { z, w: half-width, hT: height above centreline, hB: depth below, nT/nB: top/bottom exponents }
+    const stations = [
+      { z: 10.9, w: 0.03, hT: 0.03, hB: 0.03, nT: 2.0, nB: 2.0 },
+      { z: 10.0, w: 0.42, hT: 0.36, hB: 0.34, nT: 2.0, nB: 2.0 },
+      { z: 8.6, w: 0.85, hT: 0.62, hB: 0.62, nT: 2.1, nB: 2.3 },
+      { z: 7.0, w: 1.22, hT: 0.80, hB: 0.86, nT: 2.2, nB: 2.5 },
+      { z: 5.4, w: 1.52, hT: 0.92, hB: 1.02, nT: 2.4, nB: 2.7 },
+      { z: 3.6, w: 1.74, hT: 1.00, hB: 1.10, nT: 2.6, nB: 2.9 },
+      { z: 1.5, w: 1.90, hT: 1.02, hB: 1.14, nT: 2.8, nB: 3.0 },
+      { z: -0.8, w: 1.92, hT: 1.00, hB: 1.12, nT: 2.8, nB: 3.0 },
+      { z: -3.0, w: 1.78, hT: 0.94, hB: 1.02, nT: 2.6, nB: 2.8 },
+      { z: -5.0, w: 1.46, hT: 0.84, hB: 0.88, nT: 2.4, nB: 2.5 },
+      { z: -6.6, w: 1.08, hT: 0.74, hB: 0.74, nT: 2.2, nB: 2.2 },
+      { z: -7.9, w: 0.86, hT: 0.68, hB: 0.68, nT: 2.0, nB: 2.0 },
+    ];
+    add(loft(stations, 56, 90), grey);
+    // dorsal spine behind the canopy, blending into the fin roots
+    add(loft([
+      { z: 2.2, w: 0.02, hT: 0.02, hB: 0.0, nT: 2, nB: 2 },
+      { z: 1.0, w: 0.75, hT: 0.55, hB: 0.0, nT: 2.2, nB: 2 },
+      { z: -2.0, w: 0.95, hT: 0.62, hB: 0.0, nT: 2.4, nB: 2 },
+      { z: -5.0, w: 0.80, hT: 0.45, hB: 0.0, nT: 2.2, nB: 2 },
+      { z: -7.6, w: 0.50, hT: 0.12, hB: 0.0, nT: 2, nB: 2 },
+    ], 32, 40), grey, 0, 0.95, 0);
+    // radome tip
+    const radome = add(new THREE.ConeGeometry(0.42, 1.0, 32), dark, 0, 0, 10.45);
+    radome.rotation.x = Math.PI / 2;
+
+    // ---- canopy: a smooth bubble, frame hoop, and a dark cockpit tub under it
+    const bubble = add(new THREE.SphereGeometry(1, 48, 32, 0, Math.PI * 2, 0, Math.PI / 2), canopy, 0, 0.98, 4.1);
+    bubble.scale.set(0.92, 0.95, 2.35);
+    const hoop = add(new THREE.TorusGeometry(0.92, 0.05, 10, 48, Math.PI), greyDark, 0, 0.98, 3.3);
+    hoop.rotation.y = 0; hoop.scale.set(1, 0.95, 1);
+    add(new THREE.SphereGeometry(0.75, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), dark, 0, 0.9, 4.4).scale.set(0.8, 0.35, 2.0);
+    // pilot's headrest + helmet
+    add(new THREE.SphereGeometry(0.3, 20, 14), new THREE.MeshStandardMaterial({ color: '#d8dde3', roughness: 0.5 }), 0, 1.45, 3.4);
+
+    // ---- intakes: rounded-edge ducts either side under the wing root, with dark mouths
+    const intakeShape = roundedRect(1.0, 1.25, 0.3);
     for (const sx of [-1, 1]) {
-      const intake = mesh(new THREE.BoxGeometry(1.0, 1.25, 4.4), greyDark, sx * 1.85, -0.3, 2.8);
-      intake.rotation.y = sx * 0.08;
-      mesh(new THREE.BoxGeometry(0.8, 0.95, 0.3), dark, sx * 1.85, -0.3, 5.05);
+      const duct = add(new THREE.ExtrudeGeometry(intakeShape, { depth: 4.6, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.12, bevelSegments: 4 }), greyDark, sx * 1.95, -0.28, 0.6);
+      duct.rotation.y = sx * 0.06;
+      const mouth = add(new THREE.ExtrudeGeometry(roundedRect(0.78, 1.0, 0.25), { depth: 0.2, bevelEnabled: false }), dark, sx * 1.95, -0.28, 5.3);
+      mouth.rotation.y = sx * 0.06;
     }
-    // canopy: half-ellipsoid, gold-tinted
-    const can = mesh(new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), canopy, 0, 1.2, 4.0);
-    can.scale.set(0.95, 0.85, 2.3);
-    mesh(new THREE.BoxGeometry(0.1, 0.9, 0.6), greyDark, 0, 1.5, 3.3); // canopy bow frame
 
-    // wings: trapezoids (leading edge swept 35°, trailing edge swept slightly forward), extruded thin
-    const wingShape = (span, rootChord, tipChord, sweep) => {
+    // ---- wings, stabilators, canted fins: beveled extrusions so the edges are rounded, not razor-flat
+    const airfoil = (shape, thick) => new THREE.ExtrudeGeometry(shape, { depth: Math.max(0.02, thick - 0.24), bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.16, bevelSegments: 5 });
+    const planform = (span, rootChord, tipChord, sweep) => {
       const s = new THREE.Shape();
       s.moveTo(0, rootChord / 2); s.lineTo(span, rootChord / 2 - sweep); s.lineTo(span, rootChord / 2 - sweep - tipChord); s.lineTo(0, -rootChord / 2); s.closePath();
-      return new THREE.ExtrudeGeometry(s, { depth: 0.22, bevelEnabled: false });
+      return s;
     };
     for (const sx of [-1, 1]) {
-      const w = mesh(wingShape(4.9, 6.2, 1.7, 3.7), grey, sx * 1.4, -0.1, 0.4);
-      w.rotation.x = Math.PI / 2; if (sx < 0) w.scale.x = -1;          // extrude along z → flip flat, mirror for the left wing
-      const hs = mesh(wingShape(2.4, 2.8, 0.9, 1.7), grey, sx * 1.1, -0.05, -5.4);
+      const w = add(airfoil(planform(4.9, 6.2, 1.7, 3.7), 0.34), grey, sx * 1.5, -0.12, 0.4);
+      w.rotation.x = Math.PI / 2; if (sx < 0) w.scale.x = -1;
+      const hs = add(airfoil(planform(2.4, 2.8, 0.9, 1.7), 0.26), grey, sx * 1.05, -0.05, -5.5);
       hs.rotation.x = Math.PI / 2; if (sx < 0) hs.scale.x = -1;
-      // canted twin tails
-      const vt = mesh(wingShape(2.6, 2.6, 1.0, 1.7), grey, sx * 1.05, 0.5, -4.4);
-      vt.rotation.set(Math.PI / 2, 0, 0);                                            // lay it flat like a wing…
-      vt.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), sx * (Math.PI / 2 - 0.35));  // …then stand it up, canted outward
+      const vt = add(airfoil(planform(2.7, 2.7, 1.0, 1.75), 0.24), grey, sx * 1.0, 0.95, -4.6);
+      vt.rotation.set(Math.PI / 2, 0, 0);
+      vt.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), sx * (Math.PI / 2 - 0.35));
       if (sx < 0) vt.scale.x = -1;
     }
-    // engine nozzle + afterburner
-    const noz = mesh(new THREE.CylinderGeometry(0.75, 0.9, 1.4, 12, 1, true), nozzle, 0, 0.05, -7.9);
-    noz.rotation.x = Math.PI / 2; noz.material.side = THREE.DoubleSide;
-    this.flame = new THREE.Mesh(new THREE.ConeGeometry(0.6, 4, 10, 1, true), this.flameMat);
-    this.flame.rotation.x = -Math.PI / 2; this.flame.position.set(0, 0.05, -9.8); T.add(this.flame);
-    // landing gear (hidden in flight)
+
+    // ---- engine nozzle + afterburner
+    const noz = add(new THREE.CylinderGeometry(0.72, 0.86, 1.3, 36, 1, true), nozzle, 0, 0, -8.3);
+    noz.rotation.x = Math.PI / 2;
+    const inner = add(new THREE.ConeGeometry(0.6, 1.4, 36, 1, true), dark, 0, 0, -8.2);
+    inner.rotation.x = -Math.PI / 2;
+    this.flame = new THREE.Mesh(new THREE.ConeGeometry(0.62, 4.5, 24, 1, true), this.flameMat);
+    this.flame.rotation.x = -Math.PI / 2; this.flame.position.set(0, 0, -10.6); T.add(this.flame);
+
+    // ---- landing gear (hidden in flight)
     const strut = new THREE.MeshStandardMaterial({ color: '#d7d9dc', roughness: 0.5, metalness: 0.4 });
     this.gear = new THREE.Group();
-    const wheel = (x, z) => {
-      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.3, 6), strut); st.position.set(x, -1.0, z);
-      const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.26, 12), dark); wh.rotation.z = Math.PI / 2; wh.position.set(x, -1.6, z);
-      this.gear.add(st, wh);
+    const wheel = (x, z, h) => {
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, h, 12), strut); st.position.set(x, -h / 2 - 0.2, z);
+      const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.26, 24), dark); wh.rotation.z = Math.PI / 2; wh.position.set(x, -h - 0.2 + 0.1, z);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.28, 16), strut); hub.rotation.z = Math.PI / 2; hub.position.copy(wh.position);
+      this.gear.add(st, wh, hub);
     };
-    wheel(0, 5.2); wheel(-1.3, -0.6); wheel(1.3, -0.6);
+    wheel(0, 5.6, 1.15); wheel(-1.35, -0.9, 1.05); wheel(1.35, -0.9, 1.05);
     T.add(this.gear);
-    // nav lights
-    const nav = (x, c) => { const l = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 2 })); l.position.set(x, -0.05, 0.6 - 0.9); T.add(l); };
-    nav(-6.2, '#ff3b3b'); nav(6.2, '#3bff6a');
-    this.tilt.position.y = 0; // fuselage centre is the pivot
+    // nav lights on the wingtips
+    const nav = (x, c) => { const l = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 2 })); l.position.set(x, -0.1, -0.6); T.add(l); };
+    nav(-6.3, '#ff3b3b'); nav(6.3, '#3bff6a');
   }
 
   // ---------------------------------------------------------------- control
@@ -217,4 +249,51 @@ export class Jet {
   seatPoint(out = new THREE.Vector3()) {
     return out.set(0, 1.4, 4.0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw).add(this.group.position);
   }
+}
+
+/**
+ * Loft a smooth closed surface through cross-section stations (nose first, decreasing z).
+ * Each ring is a superellipse: |x/w|^n + |y/h|^n = 1, with separate heights/exponents above and
+ * below the centreline. Stations are Catmull-Rom-interpolated so the skin has no creases.
+ */
+function loft(stations, around = 48, rings = 80) {
+  const keys = ['z', 'w', 'hT', 'hB', 'nT', 'nB'];
+  const curves = Object.fromEntries(keys.map((k) => [k, new THREE.CatmullRomCurve3(stations.map((s, i) => new THREE.Vector3(i, s[k], 0)), false, 'catmullrom', 0.5)]));
+  const pos = [], idx = [];
+  const tmp = new THREE.Vector3();
+  const sample = (k, u) => curves[k].getPoint(u, tmp).y;
+  for (let r = 0; r <= rings; r++) {
+    const u = r / rings;
+    const z = sample('z', u), w = Math.max(0.001, sample('w', u)), hT = Math.max(0.001, sample('hT', u)), hB = Math.max(0.001, sample('hB', u));
+    const nT = Math.max(1.2, sample('nT', u)), nB = Math.max(1.2, sample('nB', u));
+    for (let j = 0; j <= around; j++) {
+      const th = (j / around) * Math.PI * 2;
+      const c = Math.cos(th), s = Math.sin(th);
+      const n = s >= 0 ? nT : nB;
+      const x = w * Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
+      const y = s >= 0 ? hT * Math.pow(s, 2 / n) : -hB * Math.pow(-s, 2 / n);
+      pos.push(x, y, z);
+    }
+  }
+  const W = around + 1;
+  for (let r = 0; r < rings; r++) for (let j = 0; j < around; j++) {
+    const a = r * W + j, b = a + 1, c = a + W, d = c + 1;
+    idx.push(a, c, b, b, c, d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function roundedRect(w, h, r) {
+  const s = new THREE.Shape();
+  const x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y);
+  s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  return s;
 }
