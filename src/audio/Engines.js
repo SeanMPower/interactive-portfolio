@@ -12,7 +12,7 @@ export class Engines {
     this.ctx = null;
     this.volume = volume;
     this.enabled = localStorage.getItem('sound') !== 'off';
-    this._state = { heli: 0, jet: 0 };
+    this._jetRpm = 0;        // the engine's own state: spools up quickly, winds down slowly after you get out
   }
 
   /** Call from a user gesture (start button / first key). Safe to call repeatedly. */
@@ -84,7 +84,7 @@ export class Engines {
    * @param heli  { spool 0..1, lift 0..1 (collective), distance m from the player, audible bool }
    * @param jet   { on bool, speed m/s, throttle -1..1, airborne bool, distance m }
    */
-  update(heli, jet) {
+  update(heli, jet, dt = 1 / 60) {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const t = this.ctx.currentTime, k = 0.08;
     const falloff = (d) => Math.max(0, 1 - d / 160) ** 1.5;
@@ -101,13 +101,17 @@ export class Engines {
     const j = this.jet;
     const s = jet.on ? Math.min(1, jet.speed / 80) : 0;                 // airspeed 0..1
     const thr = jet.on ? Math.max(0, jet.throttle) : 0;                  // throttle 0..1
-    const rpm = jet.on ? 0.35 + s * 0.45 + thr * 0.2 : 0;                // what the engine is doing, 0..1
-    const jv = (jet.on ? 0.3 + rpm * 0.7 : 0) * falloff(jet.distance);
+    // engine RPM follows the demand quickly, but winds down over several seconds once you climb out
+    const demand = jet.on ? 0.35 + s * 0.45 + thr * 0.2 : 0;
+    const rate = demand > this._jetRpm ? 3 : jet.on ? 2 : 0.45;
+    this._jetRpm += (demand - this._jetRpm) * Math.min(1, rate * dt);
+    const rpm = this._jetRpm;
+    const jv = (rpm > 0.005 ? (0.08 + rpm * 0.9) * 0.55 : 0) * falloff(jet.distance);
     j.out.gain.setTargetAtTime(jv, t, 0.12);
     j.roar.gain.setTargetAtTime(0.35 + rpm * 0.55, t, k);
     j.roarLp.frequency.setTargetAtTime(1400 + rpm * 3200, t, k);
     j.roarEq.frequency.setTargetAtTime(300 + rpm * 300, t, k);
-    j.rumble.gain.setTargetAtTime(0.25 + thr * 0.9, t, k);
+    j.rumble.gain.setTargetAtTime(0.1 + rpm * 0.25 + thr * 0.9, t, k);
     j.rumLp.frequency.setTargetAtTime(110 + thr * 70, t, k);
     j.flutterGain.gain.setTargetAtTime(thr * (jet.airborne ? 0.5 : 0.25), t, k);
     j.whistle.gain.setTargetAtTime(0.25 + rpm * 0.9, t, k);

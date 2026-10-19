@@ -781,7 +781,8 @@ function frame(now) {
   // engine audio: rotors whenever they're turning (wherever you are), the jet when you're flying it
   engines.update(
     { spool: heli.spool, lift: Math.max(0, heli.in.lift), distance: underwater.active ? 1e9 : player.distanceTo(heli.position), audible: !paused || mode !== 'heli' },
-    { on: mode === 'jet' && !paused, speed: jet.speed, throttle: jet.in.throttle, airborne: jet.state === 'air', distance: 0 },
+    { on: mode === 'jet' && !paused, speed: jet.speed, throttle: jet.in.throttle, airborne: jet.state === 'air', distance: underwater.active ? 1e9 : player.distanceTo(jet.position) },
+    dt,
   );
   renderer.render(underwater.active ? underwater.scene : scene, camera);
 }
