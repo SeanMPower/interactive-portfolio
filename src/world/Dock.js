@@ -27,7 +27,7 @@ export class Dock {
     const rx = Math.cos(yaw), rz = -Math.sin(yaw);
     this.moor = new THREE.Vector3(this.end.x + rx * 4.6 + ux * 1.5, terrain.waterLevel - 0.6, this.end.z + rz * 4.6 + uz * 1.5);
     this.moorYaw = yaw;
-    this.boardSpot = new THREE.Vector3(this.end.x + rx * 0.9 + ux * 1.5, top, this.end.z + rz * 0.9 + uz * 1.5);
+    this.boardSpot = new THREE.Vector3(this.end.x + rx * 0.3 + ux * 2.0, top, this.end.z + rz * 0.3 + uz * 2.0); // centred between the railings at the end
 
     this.#build(terrain, world, scene, length, width, top);
   }
@@ -72,15 +72,27 @@ export class Dock {
         g.add(pile);
       }
     }
-    // rope rail along the left side
-    const railGeo = new THREE.CylinderGeometry(0.04, 0.04, 3, 6);
-    railGeo.rotateX(Math.PI / 2);
-    for (let i = 0; i < Math.floor(length / 3); i++) {
-      const r = new THREE.Mesh(railGeo, rope);
-      r.position.set(-width / 2 + 0.25, 0.75, -length / 2 + 2.1 + i * 3);
-      r.rotation.x = 0.08;
-      g.add(r);
+    // railings: posts with two wooden rails down both sides and across the far end (open at the shore)
+    const postGeo = new THREE.CylinderGeometry(0.07, 0.08, 1.1, 8);
+    const railH = [0.55, 1.0];
+    const sideLen = length, step = 2.5;
+    for (const x of [-width / 2 + 0.18, width / 2 - 0.18]) {
+      for (let z = -sideLen / 2 + 0.4; z <= sideLen / 2 - 0.3; z += step) {
+        const post = new THREE.Mesh(postGeo, woodDark); post.position.set(x, 0.55, z); post.castShadow = true; g.add(post);
+      }
+      for (const h of railH) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, sideLen - 0.5), wood); rail.position.set(x, h, 0.1); rail.castShadow = true; g.add(rail);
+      }
     }
+    for (let x = -width / 2 + 0.18 + step * 0.6; x < width / 2 - 0.3; x += step * 0.6) {
+      const post = new THREE.Mesh(postGeo, woodDark); post.position.set(x, 0.55, length / 2 - 0.3); post.castShadow = true; g.add(post);
+    }
+    for (const h of railH) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(width - 0.2, 0.08, 0.12), wood); rail.position.set(0, h, length / 2 - 0.3); rail.castShadow = true; g.add(rail);
+    }
+    // a rope loop on the end post, for the look of it
+    const loop = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.03, 6, 12), rope);
+    loop.position.set(width / 2 - 0.18, 0.95, length / 2 - 0.3); loop.rotation.y = Math.PI / 2; g.add(loop);
     // a lifebuoy on the last post
     const buoy = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.13, 8, 20), new THREE.MeshStandardMaterial({ color: '#ff5a3c', roughness: 0.6 }));
     buoy.position.set(width / 2 - 0.25 - 0.22, 1.0, length / 2 - 0.6);
@@ -96,9 +108,11 @@ export class Dock {
     scene.add(g);
     this.group = g;
 
-    // walkable collider
+    // walkable collider, plus the railings so you can't step off the sides or the end
     const body = new CANNON.Body({ mass: 0, material: world.defaultMaterial });
     body.addShape(new CANNON.Box(new CANNON.Vec3(width / 2, 0.3, length / 2)));
+    for (const x of [-width / 2 + 0.18, width / 2 - 0.18]) body.addShape(new CANNON.Box(new CANNON.Vec3(0.1, 0.6, length / 2)), new CANNON.Vec3(x, 0.9, 0));
+    body.addShape(new CANNON.Box(new CANNON.Vec3(width / 2, 0.6, 0.1)), new CANNON.Vec3(0, 0.9, length / 2 - 0.3));
     body.position.set(this.center.x, top - 0.3, this.center.z);
     body.quaternion.setFromEuler(0, this.yaw, 0);
     world.addBody(body);
