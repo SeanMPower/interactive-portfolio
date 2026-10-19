@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { makeHelipadTexture, PAD_RADIUS } from './Landmarks.js';
 
 /**
  * The VTANG air base in the east corner: a hangar with "VTANG" painted across its roof, an apron,
@@ -13,12 +14,13 @@ export const AIRBASE = {
   hangar: { x: 214, z: -186, width: 38, depth: 42, height: 15 },   // centre; width across the runway axis, depth along it
   runway: { x1: 188, x2: 46, z: -186, width: 18 },                  // from the apron (x1) west to the threshold (x2)
   apronRadius: 30,
+  helipad: { x: 178, z: -212 },                                   // just outside the hangar, right of the runway's start
 };
 
 /** Flat spots that carve the base into the terrain (same elevation everywhere, so the runway is level). */
 export function airbaseFlatSpots() {
   const { elevation: h, hangar, runway } = AIRBASE;
-  const spots = [{ x: hangar.x, z: hangar.z, radius: 34, height: h }];
+  const spots = [{ x: hangar.x, z: hangar.z, radius: 34, height: h }, { x: AIRBASE.helipad.x, z: AIRBASE.helipad.z, radius: PAD_RADIUS + 5, height: h }];
   for (let x = runway.x1 + 4; x >= runway.x2 - 6; x -= 14) spots.push({ x, z: runway.z, radius: 16, height: h });
   return spots;
 }
@@ -37,6 +39,33 @@ export class Airbase {
     this.boardSpot = new THREE.Vector3(this.park.x + 1, y, this.park.z + 5.5);
     this.#buildRunway(scene, runway, y);
     this.#buildHangar(scene, world, hangar, y);
+    this.#buildHelipad(scene, world, AIRBASE.helipad, y);
+  }
+
+  /** A plain helipad on the apron side of the runway. `pad` is registered with the helicopter/pilot by main.js. */
+  #buildHelipad(scene, world, { x, z }, y) {
+    const g = new THREE.Group();
+    g.position.set(x, y - 0.3, z);
+    g.rotation.y = Math.atan2(-Math.SQRT1_2, -Math.SQRT1_2); // H reads the right way up from the camera, like the landmark pads
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(PAD_RADIUS, PAD_RADIUS + 0.3, 1.1, 64), new THREE.MeshStandardMaterial({ color: '#4a4f58', roughness: 0.95 }));
+    base.position.y = 0.55; base.castShadow = base.receiveShadow = true;
+    const tex = makeHelipadTexture();
+    const top = new THREE.Mesh(new THREE.CircleGeometry(PAD_RADIUS, 64), new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: '#ffffff', emissiveIntensity: 0.6, roughness: 0.9 }));
+    top.rotation.x = -Math.PI / 2; top.position.y = 1.105; top.receiveShadow = true;
+    const lightMat = new THREE.MeshStandardMaterial({ color: '#f4d35e', emissive: '#f4d35e', emissiveIntensity: 1.6 });
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      const l = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), lightMat);
+      l.position.set(Math.cos(a) * (PAD_RADIUS - 0.35), 1.15, Math.sin(a) * (PAD_RADIUS - 0.35));
+      g.add(l);
+    }
+    g.add(base, top);
+    scene.add(g);
+    const body = new CANNON.Body({ mass: 0, material: world.defaultMaterial });
+    body.addShape(new CANNON.Cylinder(PAD_RADIUS, PAD_RADIUS + 0.3, 1.1, 16));
+    body.position.set(x, y + 0.25, z);
+    world.addBody(body);
+    this.pad = { x, z, radius: PAD_RADIUS, top: y + 0.8 };
   }
 
   /** Is (x, z) on the paved strip (runway + apron)? Used for landing. */

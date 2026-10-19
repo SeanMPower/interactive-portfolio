@@ -132,6 +132,7 @@ const _pv = new THREE.Vector3();
 const spawn = new THREE.Vector3(0, terrain.heightAt(0, 0) + 8, 0);
 const heli = new Helicopter(world, scene, terrain, { spawn });
 const padColliders = landmarks.items.map((it) => ({ x: it.pad.x, z: it.pad.z, radius: PAD_RADIUS, top: it.padTop }));
+padColliders.push(airbase.pad); // the air base helipad
 heli.setPads(padColliders);
 const pilot = new Pilot(world, scene, terrain);
 pilot.setPads(padColliders);
@@ -220,6 +221,7 @@ function overworldZone() {
   markers.push({ x: dock.end.x, z: dock.end.z, kind: 'dock', label: 'Submarine dock', travel: { x: dock.center.x - Math.sin(dock.yaw) * 6, z: dock.center.z - Math.cos(dock.yaw) * 6 } });
   markers.push({ x: 0, z: 0, kind: 'spawn', label: 'Spawn' });
   markers.push({ x: AIRBASE.hangar.x - 10, z: AIRBASE.hangar.z, kind: 'hangar', label: 'VTANG hangar', travel: { x: airbase.boardSpot.x, z: airbase.boardSpot.z } });
+  markers.push({ x: airbase.pad.x, z: airbase.pad.z, kind: 'pad', label: '', title: 'Air base helipad' });
   for (const pk of terrain.peaks) if (pk.label) markers.push({ x: pk.x, z: pk.z, kind: 'peak', label: pk.name });
   const r0 = ringRun.rings[0].mesh.position;
   markers.push({ x: r0.x, z: r0.z, kind: 'ring', label: 'Ring Run start' });

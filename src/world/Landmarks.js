@@ -166,7 +166,7 @@ export class Landmarks {
  * circle and gold H. With `logoUrl`, the image is painted around the edge instead of the rings
  * (a brush-stroke ensō stands in until the image loads; if it never loads, the ensō stays).
  */
-function makeHelipadTexture({ logoUrl = null, showH = true, size = 1024 } = {}) {
+export function makeHelipadTexture({ logoUrl = null, showH = true, size = 1024 } = {}) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const ctx = c.getContext('2d');
