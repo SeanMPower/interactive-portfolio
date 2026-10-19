@@ -33,7 +33,6 @@
       <div id="speed">
         <div><span id="speed-val">0</span><small>km/h</small></div>
         <div class="alt"><span id="alt-val">0</span><small id="alt-unit">m alt</small></div>
-        <div id="pearls" class="alt hidden"><span id="pearls-val">0/8</span><small>pearls</small> <span id="pearl-arrow">➤</span><small id="pearl-hint"></small></div>
         <div id="rotor" class="hidden"><small>rotor</small><div class="bar"><div id="rotor-fill"></div></div></div>
       </div>
       <div id="prompt" class="hidden">
@@ -43,13 +42,20 @@
         <span class="key sm">F</span> <span id="prompt2-text">Get out</span>
       </div>
       <div id="toast" class="hidden"></div>
-      <div id="ringrun">
-        <div class="rr-row">
-          <span id="rr-chevron">➤</span><span class="rr-title">Ring Run</span>
-          <span id="rr-count">0/10</span><span id="rr-time">0:00.0</span>
-          <button id="rr-board" class="rr-link" type="button" title="Leaderboard" aria-label="Leaderboard">🏆</button>
+      <!-- Challenges: trophy button toggles the Ring Run (overworld) / Pearl Hunt (underwater) panel -->
+      <button id="trophy-btn" type="button" title="Challenges" aria-label="Challenges" aria-expanded="false">🏆</button>
+      <div id="challenge" class="hidden">
+        <div id="ringrun">
+          <div class="rr-title">Ring Run</div>
+          <div class="rr-row"><span id="rr-chevron">➤</span><span id="rr-count">0/10</span><span id="rr-time">0:00.0</span></div>
+          <div id="rr-hint" class="rr-sub">Fly through the green ring to start</div>
+          <button id="rr-board" class="rr-link" type="button">Leaderboard ›</button>
         </div>
-        <div id="rr-hint" class="rr-sub">Fly through the green ring to start</div>
+        <div id="pearlhunt" class="hidden">
+          <div class="rr-title">Pearl Hunt</div>
+          <div class="rr-row"><span id="pearl-arrow">➤</span><span id="pearls-val">0/8</span><small>pearls</small></div>
+          <div id="pearl-hint" class="rr-sub"></div>
+        </div>
       </div>
       <button id="reset-btn" title="Reset truck (R)">↺</button>
     </div>

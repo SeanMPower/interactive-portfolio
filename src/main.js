@@ -158,7 +158,9 @@ const hud = {
   prompt2Text: document.getElementById('prompt2-text'),
   touchSecondary: document.getElementById('touch-secondary'),
   altUnit: document.getElementById('alt-unit'),
-  pearls: document.getElementById('pearls'),
+  challenge: document.getElementById('challenge'),
+  trophy: document.getElementById('trophy-btn'),
+  pearlhunt: document.getElementById('pearlhunt'),
   pearlsVal: document.getElementById('pearls-val'),
   pearlHint: document.getElementById('pearl-hint'),
   pearlArrow: document.getElementById('pearl-arrow'),
@@ -187,6 +189,15 @@ const board = new Leaderboard({
   onClose: () => { paused = pausedBeforeBoard; controls.setEnabled(!paused); },
 });
 document.getElementById('rr-board').addEventListener('click', () => { if (!overlay.isOpen) board.show(); });
+// Challenge panel: closed by default; the trophy toggles it, and it pops open on its own when a run starts or you dive
+let challengeOpen = false;
+function setChallenge(open) {
+  challengeOpen = open;
+  hud.challenge.classList.toggle('hidden', !open);
+  hud.trophy.setAttribute('aria-expanded', String(open));
+  hud.trophy.classList.toggle('open', open);
+}
+hud.trophy.addEventListener('click', () => setChallenge(!challengeOpen));
 
 let activeProject = null;
 controls.onAction = () => {
@@ -298,7 +309,7 @@ function startDive() {
     underwater.enter();
     followCam.targetScale = SUB_CAM_SCALE;
     followCam.snapTo(sub.position);
-    setTimeout(() => { fade(false); mode = 'sub'; toast(`Dive! Find the ${underwater.cave.total} pearls · hold Space at the surface to come back up`, 5); }, 250);
+    setTimeout(() => { fade(false); mode = 'sub'; setChallenge(true); toast(`Dive! Find the ${underwater.cave.total} pearls · hold Space at the surface to come back up`, 5); }, 250);
   }, 750);
 }
 function startSurface() {
@@ -476,7 +487,7 @@ function frame(now) {
     }
     // ring run
     const rr = ringRun.update(heli.position, dt, elapsed);
-    if (rr === 'start') toast('Go! Follow the glowing rings', 2.5);
+    if (rr === 'start') { toast('Go! Follow the glowing rings', 2.5); setChallenge(true); }
     else if (rr === 'ring') toast(`Ring ${ringRun.next} of ${ringRun.total}`, 1.2);
     else if (rr === 'finish' || rr === 'record') {
       toast(rr === 'record' ? `New best time · ${fmtTime(ringRun.lastResult)}!` : `Course complete · ${fmtTime(ringRun.lastResult)}`, 4);
@@ -548,7 +559,7 @@ function frame(now) {
   hud.speed.textContent = Math.round(mode === 'sub' ? sub.speedKmh : mode === 'foot' ? pilot.speedKmh : onFoot ? 0 : heli.speedKmh);
   hud.alt.textContent = Math.max(0, Math.round(underwater.active ? underwater.depth : onFoot ? 0 : heli.altitude));
   hud.altUnit.textContent = underwater.active ? 'm deep' : 'm alt';
-  hud.pearls.classList.toggle('hidden', !underwater.active);
+  hud.pearlhunt.classList.toggle('hidden', !underwater.active);
   if (underwater.active) {
     hud.pearlsVal.textContent = `${underwater.cave.found}/${underwater.cave.total}`;
     const np = underwater.cave.nearestPearl(sub.position);
@@ -561,6 +572,7 @@ function frame(now) {
     hud.pearlArrow.classList.toggle('hidden', !np);
   }
   hud.rr.classList.toggle('hidden', underwater.active);
+  hud.trophy.classList.toggle('live', ringRun.state === 'running' && !underwater.active);
   // ring-run panel: chevron points toward the next ring in screen space (camera looks from +x,+z)
   const b = ringRun.bearingTo(heli.position);
   if (b) {

@@ -55,7 +55,6 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 }
 #speed small { font-size: 0.65rem; color: var(--muted); margin-left: 4px; font-weight: 600; }
 #speed .alt { font-size: 0.95rem; margin-top: 0.35rem; color: var(--muted); }
-#pearl-arrow { display: inline-block; color: var(--accent); font-size: 0.8rem; margin-left: 6px; }
 #rotor { margin-top: 0.5rem; display: flex; align-items: center; gap: 6px; }
 #rotor small { font-size: 0.6rem; color: var(--muted); font-weight: 600; margin: 0; }
 #rotor .bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; min-width: 70px; }
@@ -80,7 +79,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   border: 1px solid rgba(255,255,255,0.1);
 }
 #reset-btn {
-  position: absolute; right: 1.25rem; top: 5.4rem; pointer-events: auto; /* sits under the Ring Run pill */
+  position: absolute; right: 1.25rem; top: 4.75rem; pointer-events: auto; /* under the trophy button */
   width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
   background: var(--panel); color: var(--text); font-size: 1.4rem; cursor: pointer;
 }
@@ -194,26 +193,33 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   #prompt2.solo { bottom: 8.5rem; }
 }
 
-/* ---------- Ring Run panel ---------- */
-#ringrun {
-  position: absolute; top: 1.25rem; right: 1.25rem;
-  background: rgba(16,18,26,0.55); border: 1px solid rgba(255,255,255,0.07); border-radius: 999px;
-  padding: 0.35rem 0.7rem 0.35rem 0.6rem; font-variant-numeric: tabular-nums; opacity: 0.85;
-  transition: opacity 0.2s;
+/* ---------- Challenges: trophy button + Ring Run / Pearl Hunt panel ---------- */
+#trophy-btn {
+  position: absolute; right: 1.25rem; top: 1.25rem; pointer-events: auto;
+  width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
+  background: var(--panel); font-size: 1.3rem; line-height: 1; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s;
 }
-#ringrun:hover { opacity: 1; }
-#ringrun .rr-title { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-right: 0.15rem; }
-#ringrun .rr-row { display: flex; align-items: center; gap: 0.45rem; font-weight: 800; font-size: 0.9rem; }
-#rr-chevron { display: inline-block; color: var(--accent); font-size: 0.95rem; transition: transform 0.1s linear; }
-#ringrun .rr-sub { font-size: 0.66rem; color: var(--muted); margin-top: 0.1rem; text-align: right; }
-#ringrun .rr-sub:empty { display: none; }
+#trophy-btn.open { border-color: rgba(255,255,255,0.3); }
+#trophy-btn.live { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,180,50,0.25); animation: live 1.2s ease-in-out infinite; }
+@keyframes live { 50% { box-shadow: 0 0 0 6px rgba(255,180,50,0.08); } }
+#challenge {
+  position: absolute; right: 4.9rem; top: 1.25rem; min-width: 160px;
+  background: var(--panel); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+  padding: 0.55rem 0.85rem; font-variant-numeric: tabular-nums; animation: pop-in 0.18s ease;
+}
+@keyframes pop-in { from { transform: translateX(6px); opacity: 0; } }
+#challenge .rr-title { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+#challenge .rr-row { display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.05rem; margin-top: 0.15rem; }
+#challenge .rr-row small { font-size: 0.65rem; color: var(--muted); font-weight: 600; }
+#rr-chevron, #pearl-arrow { display: inline-block; color: var(--accent); font-size: 1.1rem; transition: transform 0.1s linear; }
+#challenge .rr-sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.15rem; }
+#challenge .rr-sub:empty { display: none; }
 #ringrun.done .rr-row { color: #7ee787; }
-
-#ringrun .rr-link {
-  pointer-events: auto; margin: 0 0 0 0.15rem; padding: 0; border: 0; background: none;
-  font-size: 0.85rem; line-height: 1; cursor: pointer; opacity: 0.8;
+#challenge .rr-link {
+  pointer-events: auto; display: block; margin: 0.4rem 0 0; padding: 0; border: 0; background: none;
+  font: inherit; font-size: 0.7rem; font-weight: 700; color: var(--accent); cursor: pointer; letter-spacing: 0.02em;
 }
-#ringrun .rr-link:hover { opacity: 1; transform: scale(1.15); }
+#challenge .rr-link:hover { text-decoration: underline; }
 
 /* ---------- Leaderboard modal ---------- */
 #board {
@@ -311,10 +317,9 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   #touch-action { bottom: calc(1.5rem + 150px + 14px); }
   #touch-secondary { bottom: calc(1.5rem + 150px + 14px + 56px + 10px); }
   #touch-secondary.solo { bottom: calc(1.5rem + 150px + 14px); }
-  #ringrun #rr-hint { display: none; }
-  #reset-btn { top: 4.4rem; }  /* no hint line, so the pill is shorter */
 }
 @media (pointer: coarse) and (orientation: landscape) {
   #touch .pad.alt button { width: 62px; height: 62px; font-size: 1.5rem; }
   #touch .pad.alt { gap: 10px; }
+  #challenge { min-width: 0; padding: 0.45rem 0.7rem; }
 }
