@@ -19,6 +19,7 @@ import { FollowCamera } from './Camera.js';
 import { Overlay } from './ui/Overlay.js';
 import { Leaderboard } from './ui/Leaderboard.js';
 import { MapView } from './ui/MapView.js';
+import { Engines } from './audio/Engines.js';
 import { RingRun, fmtTime } from './world/RingRun.js';
 
 const HOVER_TO_OPEN = 12; // metres above a pad at which the "open" prompt appears
@@ -254,6 +255,7 @@ const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
 idle(() => mapView.prerender(overworldZone()));
 idle(() => mapView.prerender(reefZone()));
 controls.onMap = openMap;
+controls.onDoubleTap = (dir) => { if (mode === 'jet' && !paused) jet.startRoll(dir); };
 window.__mapView = mapView; window.__zones = { over: overworldZone, reef: reefZone };
 /** Teleport whoever the player currently is to (x, z). */
 function travelTo(x, z, marker) {
@@ -450,7 +452,7 @@ function startBoardJet() {
       pilot.group.visible = false;
       mode = 'jet';
       followCam.targetScale = JET_CAM_SCALE;
-      toast('Canopy down · W throttle · A/D steer · at speed, hold Space to rotate · F to get out when stopped', 6);
+      toast('Canopy down · W throttle · A/D steer · at speed, hold Space to rotate · double-tap A/D in the air to barrel roll · F to get out when stopped', 7);
     },
   };
 }
@@ -509,9 +511,19 @@ controls.onReset = () => {
   hud.toast.classList.add('hidden');
 };
 
+// Engine sounds (procedural); the audio context needs a user gesture, so it starts with the game
+const engines = new Engines();
+const soundBtn = document.getElementById('sound-btn');
+const syncSoundBtn = () => { soundBtn.textContent = engines.enabled ? '🔊' : '🔇'; soundBtn.title = engines.enabled ? 'Mute' : 'Unmute'; };
+syncSoundBtn();
+soundBtn.addEventListener('click', () => { engines.init(); engines.setEnabled(!engines.enabled); syncSoundBtn(); });
+window.addEventListener('keydown', () => engines.init(), { once: true });
+window.addEventListener('pointerdown', () => engines.init(), { once: true });
+
 // Start screen
 const startEl = document.getElementById('start');
 function start() {
+  engines.init();
   startEl.classList.add('fade');
   setTimeout(() => startEl.classList.add('hidden'), 500);
   paused = false;
@@ -619,6 +631,7 @@ function frame(now) {
       if (jev === 'crash') crashJet();
       else if (jev === 'takeoff') toast('Airborne · Space/Shift pitch · W/S throttle', 3);
       else if (jev === 'landed') toast('Touchdown · S to brake · F to get out once stopped', 3);
+      else if (jev === 'roll') toast('Barrel roll!', 1.2);
     }
 
     // hop out of / into the cockpit
@@ -765,6 +778,11 @@ function frame(now) {
   hud.rotorFill.style.width = `${Math.round(heli.spool * 100)}%`;
   if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) hud.toast.classList.add('hidden'); }
 
+  // engine audio: rotors whenever they're turning (wherever you are), the jet when you're flying it
+  engines.update(
+    { spool: heli.spool, lift: Math.max(0, heli.in.lift), distance: underwater.active ? 1e9 : player.distanceTo(heli.position), audible: !paused || mode !== 'heli' },
+    { on: mode === 'jet' && !paused, speed: jet.speed, throttle: jet.in.throttle, airborne: jet.state === 'air', distance: 0 },
+  );
   renderer.render(underwater.active ? underwater.scene : scene, camera);
 }
 requestAnimationFrame(frame);

@@ -12,6 +12,8 @@ export class Controls {
     this.onReset = null;  // R
     this.onSecondary = null; // F / tap "EXIT" or "BOARD" (get out of / back into the helicopter)
     this.onMap = null;       // M
+    this.onDoubleTap = null; // (dir: -1 | 1) — A/D or ◀/▶ tapped twice quickly (jet barrel roll)
+    this._lastTap = { key: null, at: 0 };
     this.onEscape = null;
 
     const map = {
@@ -27,7 +29,15 @@ export class Controls {
       if (e.code === 'Escape') { this.onEscape?.(); return; }
       if (!this.enabled) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (map[e.code]) { this.state[map[e.code]] = true; e.preventDefault(); }
+      if (map[e.code]) {
+        const k = map[e.code];
+        if ((k === 'left' || k === 'right') && !e.repeat) {
+          const now = e.timeStamp; // when the key was actually pressed, not when a slow frame got round to it
+          if (this._lastTap.key === k && now - this._lastTap.at < 320) { this.onDoubleTap?.(k === 'left' ? 1 : -1); this._lastTap.key = null; }
+          else this._lastTap = { key: k, at: now };
+        }
+        this.state[k] = true; e.preventDefault();
+      }
       if (e.code === 'KeyE' || e.code === 'Enter') this.onAction?.();
       if (e.code === 'KeyR') this.onReset?.();
       if (e.code === 'KeyF') this.onSecondary?.();

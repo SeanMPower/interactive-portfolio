@@ -41,6 +41,7 @@ export class Jet {
     this.vy = 0;
     this.altitude = 0;
     this.events = [];
+    this.roll = null;       // { dir, t } while a barrel roll is playing
     this.#buildVisual();
   }
 
@@ -230,11 +231,25 @@ export class Jet {
     this.altitude = p.y - ground - t.gearHeight;
   }
 
+  /** Barrel roll: a full 360° about the nose over ~0.9 s. Only in the air; dir +1 rolls left. */
+  startRoll(dir) {
+    if (this.state !== 'air' || this.roll) return false;
+    this.roll = { dir, t: 0, duration: 0.9 };
+    this.events.push('roll');
+    return true;
+  }
+
   sync(dt) {
     const t = this.tuning;
     this.group.rotation.y = this.yaw;
     const bank = this.state === 'air' ? -this.in.turn * t.maxBank * Math.min(1, this.speed / 30) : 0;
-    this.tilt.rotation.z = THREE.MathUtils.damp(this.tilt.rotation.z, bank, 4, dt);
+    if (this.roll) {
+      this.roll.t += dt;
+      const u = Math.min(1, this.roll.t / this.roll.duration);
+      const e = u * u * (3 - 2 * u);                                     // ease in and out of the roll
+      this.tilt.rotation.z = bank + this.roll.dir * e * Math.PI * 2;
+      if (u >= 1) { this.roll = null; this.tilt.rotation.z = bank; }
+    } else this.tilt.rotation.z = THREE.MathUtils.damp(this.tilt.rotation.z, bank, 4, dt);
     this.tilt.rotation.x = THREE.MathUtils.damp(this.tilt.rotation.x, -this.pitch, 6, dt);
     const burn = this.state === 'air' ? Math.max(0, this.in.throttle) : Math.max(0, this.in.throttle) * Math.min(1, this.speed / 20);
     this.flameMat.opacity = burn * 0.8;
