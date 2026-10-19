@@ -114,7 +114,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 12; display: none; }
 @media (pointer: coarse) { #touch { display: block; } #speed { bottom: auto; top: 1.25rem; } #reset-btn { bottom: auto; top: 1.25rem; } }
 #touch .pad { position: absolute; bottom: 1.5rem; display: flex; gap: 12px; pointer-events: auto; }
-#touch .pad.alt { right: 1.5rem; flex-direction: row-reverse; }  /* descend left, climb right (thumb rests on climb) */
+#touch .pad.alt { right: 1.5rem; flex-direction: column; }  /* climb on top, descend below */
 #touch .pad.alt button { width: 72px; height: 72px; border-radius: 50%; font-size: 1.7rem; }
 /* thumb joystick */
 #stick {
@@ -299,4 +299,20 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 @media (max-height: 640px) {
   .board-card { overflow: hidden; }
   #board-list { overflow-y: auto; min-height: 0; scrollbar-width: thin; }
+}
+
+/* ---------- Touch layout tweaks (must stay last: they override the button rules above) ---------- */
+/* touch: the buttons already say OPEN / GET OUT, so hide the keyboard hint pills */
+@media (pointer: coarse) { #prompt, #prompt2 { display: none !important; } }
+/* portrait phones: stack the action buttons above the joystick row, and slim the Ring Run panel */
+@media (pointer: coarse) and (orientation: portrait) {
+  #touch-action { bottom: calc(1.5rem + 150px + 14px); }
+  #touch-secondary { bottom: calc(1.5rem + 150px + 14px + 56px + 10px); }
+  #touch-secondary.solo { bottom: calc(1.5rem + 150px + 14px); }
+  #ringrun { min-width: 0; padding: 0.5rem 0.7rem; }
+  #ringrun #rr-hint { display: none; }
+}
+@media (pointer: coarse) and (orientation: landscape) {
+  #touch .pad.alt button { width: 62px; height: 62px; font-size: 1.5rem; }
+  #touch .pad.alt { gap: 10px; }
 }
