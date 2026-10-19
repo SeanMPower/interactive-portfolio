@@ -256,6 +256,7 @@ function travelTo(x, z, marker) {
   else return;
   hud.toast.classList.add('hidden');
   if (marker?.label) toast(marker.label, 1.8);
+  cancelRingRun('you used the map');
 }
 // Challenge panel: closed by default; the trophy toggles it, and it pops open on its own when a run starts or you dive
 let challengeOpen = false;
@@ -307,8 +308,15 @@ const canBoardSub = () => mode === 'foot' && Math.hypot(pilot.position.x - dock.
 const canExitSub = () => mode === 'subdocked';
 const inSub = () => mode === 'sub' || mode === 'subdocked' || mode === 'diving' || mode === 'surfacing' || mode === 'subboarding' || mode === 'subexiting';
 
+/** A run in progress is void if you teleport or leave the helicopter. */
+function cancelRingRun(why) {
+  if (ringRun.state !== 'running') return;
+  ringRun.reset();
+  toast(`Ring Run cancelled · ${why}`, 2.5);
+}
 function startExit() {
   const { seat, step, outYaw } = cockpitPoints();
+  cancelRingRun('you got out');
   mode = 'exiting';
   pilot.group.visible = true;
   pilot.group.position.copy(seat);
