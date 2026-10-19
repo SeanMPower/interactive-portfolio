@@ -79,17 +79,17 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   border: 1px solid rgba(255,255,255,0.1);
 }
 #sound-btn {
-  position: absolute; right: 1.25rem; top: 11.75rem; pointer-events: auto;
+  position: absolute; right: 1.25rem; top: 8.25rem; pointer-events: auto;
   width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
   background: var(--panel); font-size: 1.2rem; line-height: 1; cursor: pointer;
 }
 #map-btn {
-  position: absolute; right: 1.25rem; top: 8.25rem; pointer-events: auto;
+  position: absolute; right: 1.25rem; top: 4.75rem; pointer-events: auto;
   width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
   background: var(--panel); font-size: 1.3rem; line-height: 1; cursor: pointer;
 }
 #reset-btn {
-  position: absolute; right: 1.25rem; top: 4.75rem; pointer-events: auto; /* under the trophy button */
+  position: absolute; right: 1.25rem; top: 11.75rem; pointer-events: auto; /* stack: trophy, map, sound, reset */
   width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
   background: var(--panel); color: var(--text); font-size: 1.4rem; cursor: pointer;
 }
