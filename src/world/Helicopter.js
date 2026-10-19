@@ -36,6 +36,7 @@ export class Helicopter {
       spoolUp: 2.2,         // rotor spool-up rate (≈1.5 s to flying speed)
       spoolDown: 1.1,       // rotor wind-down rate after landing (≈3 s)
       landingRate: 3.5,     // m/s descent when setting down on a pad
+      maxLandSlope: 0.4,    // steepest ground (rise/run) you can set down on away from a pad
     };
 
     // eased input state
@@ -218,9 +219,18 @@ export class Helicopter {
     const b = this.body;
     const g = -this.world.gravity.y;
 
-    // Which helipad (if any) are we over?
+    // Which helipad (if any) are we over? Otherwise, is the ground below dry and flat enough to set down on?
     this.pad = this.pads.find((p) => Math.hypot(b.position.x - p.x, b.position.z - p.z) < p.radius) || null;
-    const restY = this.pad ? this.pad.top + this.restHeight : Infinity; // body centre height when sitting on the pad
+    const groundHere = this.terrain.heightAt(b.position.x, b.position.z);
+    let landable = !!this.pad;
+    if (!landable && groundHere > this.terrain.waterLevel + 0.3) {
+      const e = 2.5;
+      const sx = (this.terrain.heightAt(b.position.x + e, b.position.z) - this.terrain.heightAt(b.position.x - e, b.position.z)) / (2 * e);
+      const sz = (this.terrain.heightAt(b.position.x, b.position.z + e) - this.terrain.heightAt(b.position.x, b.position.z - e)) / (2 * e);
+      landable = Math.hypot(sx, sz) < t.maxLandSlope;
+    }
+    this.landable = landable;
+    const restY = this.pad ? this.pad.top + this.restHeight : landable ? groundHere + this.restHeight : Infinity; // body centre when the skids touch
 
     // ---------- Landed: rotors wind down; holding "up" spools them back up before lift-off
     if (this.landed) {
@@ -231,8 +241,8 @@ export class Helicopter {
         this.landed = false;               // lift-off
         this.justTookOff = true;
       }
-      // sit still on the pad (the pad collider holds the weight)
-      b.velocity.x *= 0.5; b.velocity.z *= 0.5;
+      // sit still (the pad / terrain collider holds the weight; no creeping downhill on a slope)
+      b.velocity.x = 0; b.velocity.z = 0;
       this.speedKmh = 0;
       this.altitude = b.position.y - this.terrain.heightAt(b.position.x, b.position.z);
       return;
@@ -248,8 +258,8 @@ export class Helicopter {
     this.in.yaw = THREE.MathUtils.damp(this.in.yaw, tgtYaw, t.inputEase, dt);
     this.in.lift = THREE.MathUtils.damp(this.in.lift, tgtLift, t.inputEase, dt);
 
-    // ---------- Touchdown: over a pad, descending, and resting on it
-    if (this.pad && input.down && b.position.y < restY + 0.35 && Math.abs(b.velocity.y) < 1.5 && Math.hypot(b.velocity.x, b.velocity.z) < 4) {
+    // ---------- Touchdown: over a pad or flat dry ground, descending, and resting on it
+    if (landable && input.down && b.position.y < restY + 0.35 && Math.abs(b.velocity.y) < 1.5 && Math.hypot(b.velocity.x, b.velocity.z) < 4) {
       this.landed = true;
       this.justLanded = true;
       this.rotorTarget = 0;
@@ -286,10 +296,11 @@ export class Helicopter {
     if (b.velocity.y > t.maxClimbRate && ay > g) ay = g;
     if (b.velocity.y < -t.maxClimbRate && ay < g) ay = g;
 
-    // Soft floor (lifted over a helipad so you can actually set down) and ceiling
-    const floor = this.pad ? -Infinity : ground + t.minAltitude;
+    // Soft floor: lifted over a helipad, and over landable ground while you're holding "down", so you can set down
+    const settling = landable && this.in.lift < -0.02;
+    const floor = this.pad || settling ? -Infinity : ground + t.minAltitude;
     if (b.position.y < floor) ay += (floor - b.position.y) * 10 - b.velocity.y * 4;
-    if (this.pad && this.in.lift < -0.02) ay = g + (-t.landingRate - b.velocity.y) * 3; // settle gently onto the pad
+    if (settling) ay = g + (-t.landingRate - b.velocity.y) * 3; // settle gently onto the pad / ground
     if (b.position.y > t.maxAltitude) ay += (t.maxAltitude - b.position.y) * 2 - Math.max(b.velocity.y, 0) * 3;
 
     b.applyForce(new CANNON.Vec3(ax * t.mass, ay * t.mass, az * t.mass));

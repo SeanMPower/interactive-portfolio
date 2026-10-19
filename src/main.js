@@ -482,6 +482,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     l.add(t, 'spoolUp', 0.5, 6, 0.1).name('spool-up rate');
     l.add(t, 'spoolDown', 0.3, 4, 0.1).name('wind-down rate');
     l.add(t, 'landingRate', 1, 10, 0.5);
+    l.add(t, 'maxLandSlope', 0.1, 1.2, 0.05).name('max landing slope');
     const v = gui.addFolder('Visual tilt');
     v.add(t, 'pitchPerSpeed', 0, 0.04, 0.001);
     v.add(t, 'maxPitch', 0, 1, 0.01);
