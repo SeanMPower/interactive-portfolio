@@ -1,6 +1,6 @@
 /**
  * Procedural engine sounds (Web Audio, no sample files):
- *   helicopter — a rotor "whop" (low-passed noise chopped at the blade-pass rate) plus a turbine whine,
+ *   helicopter — a rotor "whop" (low-passed noise chopped at the blade-pass rate) plus a faint turbine hiss,
  *                both scaled by how fast the rotors are spinning; the whop slows as the rotors wind down
  *   jet        — turbine whine + broadband rush that rise with speed, and a low afterburner rumble under throttle
  * Everything is attenuated by distance from the player and muted underwater. The context is created on
@@ -37,13 +37,12 @@ export class Engines {
     h.lfoGain = ctx.createGain(); h.lfoGain.gain.value = 1;
     h.lfo.connect(h.lfoShape).connect(h.lfoGain).connect(h.chop.gain);
     h.src.connect(h.lp).connect(h.chop).connect(h.out);
-    // turbine whine
-    h.osc = ctx.createOscillator(); h.osc.type = 'triangle'; h.osc.frequency.value = 160;
-    h.osc2 = ctx.createOscillator(); h.osc2.type = 'sine'; h.osc2.frequency.value = 480;
-    h.whine = ctx.createGain(); h.whine.gain.value = 0;
-    h.whineLp = ctx.createBiquadFilter(); h.whineLp.type = 'lowpass'; h.whineLp.frequency.value = 1200;
-    h.osc.connect(h.whineLp); h.osc2.connect(h.whineLp); h.whineLp.connect(h.whine).connect(h.out);
-    h.src.start(); h.lfo.start(); h.osc.start(); h.osc2.start();
+    // turbine hiss: a quiet band of noise rather than a tone (a steady tone reads as a hum)
+    h.src2 = ctx.createBufferSource(); h.src2.buffer = noise; h.src2.loop = true;
+    h.hissBp = ctx.createBiquadFilter(); h.hissBp.type = 'bandpass'; h.hissBp.frequency.value = 1800; h.hissBp.Q.value = 0.9;
+    h.hiss = ctx.createGain(); h.hiss.gain.value = 0;
+    h.src2.connect(h.hissBp).connect(h.hiss).connect(h.out);
+    h.src.start(); h.lfo.start(); h.src2.start();
 
     // ---------------- jet
     const j = (this.jet = {});
@@ -86,9 +85,8 @@ export class Engines {
     h.lp.frequency.setTargetAtTime(200 + sp * 160 + heli.lift * 120, t, k);
     h.chop.gain.setTargetAtTime(0.0, t, k);                              // base level, LFO adds the pulses
     h.lfoGain.gain.setTargetAtTime(0.7 + heli.lift * 0.3, t, k);
-    h.whine.gain.setTargetAtTime(0.05 + sp * 0.07, t, k);
-    h.osc.frequency.setTargetAtTime(120 + sp * 90, t, k);
-    h.osc2.frequency.setTargetAtTime(360 + sp * 300 + heli.lift * 60, t, k);
+    h.hiss.gain.setTargetAtTime(sp * 0.05, t, k);
+    h.hissBp.frequency.setTargetAtTime(1400 + sp * 900 + heli.lift * 300, t, k);
     // jet
     const j = this.jet;
     const s = jet.on ? Math.min(1, jet.speed / 80) : 0;
