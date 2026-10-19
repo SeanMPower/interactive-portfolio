@@ -80,7 +80,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   border: 1px solid rgba(255,255,255,0.1);
 }
 #reset-btn {
-  position: absolute; right: 1.25rem; bottom: 1.25rem; pointer-events: auto;
+  position: absolute; right: 1.25rem; top: 5.4rem; pointer-events: auto; /* sits under the Ring Run pill */
   width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
   background: var(--panel); color: var(--text); font-size: 1.4rem; cursor: pointer;
 }
@@ -112,7 +112,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 
 /* ---------- Touch controls ---------- */
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 12; display: none; }
-@media (pointer: coarse) { #touch { display: block; } #speed { bottom: auto; top: 1.25rem; } #reset-btn { bottom: auto; top: 1.25rem; } }
+@media (pointer: coarse) { #touch { display: block; } #speed { bottom: auto; top: 1.25rem; } }
 #touch .pad { position: absolute; bottom: 1.5rem; display: flex; gap: 12px; pointer-events: auto; }
 #touch .pad.alt { right: 1.5rem; flex-direction: column; }  /* climb on top, descend below */
 #touch .pad.alt button { width: 72px; height: 72px; border-radius: 50%; font-size: 1.7rem; }
@@ -208,7 +208,6 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 #ringrun .rr-sub { font-size: 0.66rem; color: var(--muted); margin-top: 0.1rem; text-align: right; }
 #ringrun .rr-sub:empty { display: none; }
 #ringrun.done .rr-row { color: #7ee787; }
-@media (pointer: coarse) { #ringrun { top: 5.5rem; } }
 
 #ringrun .rr-link {
   pointer-events: auto; margin: 0 0 0 0.15rem; padding: 0; border: 0; background: none;
@@ -313,6 +312,7 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
   #touch-secondary { bottom: calc(1.5rem + 150px + 14px + 56px + 10px); }
   #touch-secondary.solo { bottom: calc(1.5rem + 150px + 14px); }
   #ringrun #rr-hint { display: none; }
+  #reset-btn { top: 4.4rem; }  /* no hint line, so the pill is shorter */
 }
 @media (pointer: coarse) and (orientation: landscape) {
   #touch .pad.alt button { width: 62px; height: 62px; font-size: 1.5rem; }
