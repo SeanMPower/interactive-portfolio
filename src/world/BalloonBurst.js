@@ -9,14 +9,11 @@ import * as THREE from 'three';
  * Positions are [x, z, altitude above the terrain]; keep them clear of the hangar roof.
  */
 const LAYOUT = [
-  [120, -186, 18], [60, -186, 26],                 // down the runway, climbing
-  [10, -150, 30], [-40, -100, 40], [-90, -60, 34],  // sweeping west
-  [-130, 20, 24], [-150, 90, 36],                   // over the big lake
-  [-100, 150, 44], [-30, 190, 30], [40, 170, 22],   // the south
-  [100, 150, 40], [150, 100, 28], [160, 30, 20],    // the east, low over the small lake
-  [120, -60, 34], [80, -110, 48], [20, -40, 56],    // climbing through the middle
-  [-60, 10, 50], [0, 90, 60], [60, 60, 52],         // high circuit
-  [-200, -130, 46], [160, -230, 52], [-60, -236, 58], // tucked against the rim and the peaks
+  [110, -186, 20], [40, -186, 30],                  // down the runway, climbing
+  [-40, -100, 40], [-130, 20, 26],                   // sweeping west to the big lake
+  [-100, 150, 44], [40, 170, 24],                    // the south
+  [150, 100, 30], [120, -60, 36],                    // the east, back up past the small lake
+  [0, 60, 58], [-60, -236, 56],                      // one high, one tucked against Mt. Mansfield
 ];
 const COLORS = ['#ff3d6e', '#ffb52e', '#3fb8ff', '#8ef05a', '#c56bff', '#ff7a1f', '#ff5fc8', '#5ef2ff'];
 
