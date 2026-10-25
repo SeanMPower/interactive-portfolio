@@ -36,6 +36,7 @@ export class Overlay {
     }
 
     this.body.innerHTML = '';
+    this.body.classList.toggle('gilt', !!(project.frame && project.embed && project.url));
     if (project.embed && project.url) {
       const iframe = document.createElement('iframe');
       iframe.src = project.url;
@@ -43,7 +44,8 @@ export class Overlay {
       iframe.loading = 'eager';
       iframe.allow = 'fullscreen; clipboard-write';
       iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-pointer-lock');
-      this.body.appendChild(iframe);
+      if (project.frame) this.body.appendChild(this.#frame(project, iframe));
+      else this.body.appendChild(iframe);
     } else {
       this.body.appendChild(this.#card(project));
     }
@@ -61,6 +63,30 @@ export class Overlay {
     this.body.innerHTML = ''; // destroys the iframe (stops audio, timers, etc.)
     history.replaceState(null, '', location.pathname + location.search);
     if (notify) this.onClose?.(p);
+  }
+
+  /**
+   * A gilded picture frame around an embedded site: carved gold mouldings, a cream mat, a brass
+   * title plaque. The project's screenshot sits behind the iframe until the page has loaded.
+   */
+  #frame(p, iframe) {
+    const wrap = document.createElement('div');
+    wrap.className = 'gilt-wall';
+    wrap.style.setProperty('--accent', p.color || '#ffd166');
+    const frame = document.createElement('figure');
+    frame.className = 'gilt-frame';
+    const canvas = document.createElement('div');
+    canvas.className = 'gilt-canvas';
+    if (p.image) canvas.style.backgroundImage = `url("${p.image}")`;
+    iframe.addEventListener('load', () => canvas.classList.add('loaded'));
+    canvas.appendChild(iframe);
+    const plaque = document.createElement('figcaption');
+    plaque.className = 'gilt-plaque';
+    plaque.innerHTML = `<strong>${p.title}</strong>${p.tech ? `<span>${p.tech}</span>` : ''}`;
+    frame.append(canvas, plaque);
+    for (const c of ['tl', 'tr', 'bl', 'br']) { const o = document.createElement('i'); o.className = `gilt-corner ${c}`; frame.appendChild(o); }
+    wrap.appendChild(frame);
+    return wrap;
   }
 
   #card(p) {

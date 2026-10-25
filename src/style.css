@@ -180,6 +180,68 @@ canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: bl
 #overlay-body { flex: 1; min-height: 0; display: grid; }
 #overlay-body iframe { width: 100%; height: 100%; border: 0; background: #fff; }
 
+/* Gilded frame: an embedded site hung on a gallery wall (gallery entries with frame: true) */
+#overlay-body.gilt { background: radial-gradient(ellipse at 50% 30%, #2a2420 0%, #16130f 55%, #0b0a08 100%); }
+.gilt-wall { display: grid; place-items: center; height: 100%; box-sizing: border-box; padding: clamp(0.75rem, 2.5vh, 2rem) clamp(0.75rem, 3vw, 2.5rem); min-height: 0; }
+.gilt-frame {
+  --gold-hi: #f3dc94; --gold: #c9973f; --gold-lo: #6a4612; --gold-shadow: #2e1d05;
+  position: relative; margin: 0; width: min(100%, 1480px); height: 100%; max-height: 100%;
+  display: flex; flex-direction: column;
+  padding: 36px 36px 30px; border-radius: 6px;
+  /* carved mouldings: an outer bevel, a beaded ridge, an inner lip */
+  background:
+    linear-gradient(135deg, var(--gold-hi) 0%, var(--gold) 18%, var(--gold-lo) 50%, var(--gold) 82%, var(--gold-hi) 100%);
+  box-shadow:
+    inset 0 0 0 4px var(--gold-shadow),
+    inset 0 0 0 7px var(--gold-hi),
+    inset 0 0 0 9px var(--gold-lo),
+    inset 0 0 0 16px var(--gold),
+    inset 0 0 0 18px var(--gold-shadow),
+    inset 0 0 0 20px var(--gold-hi),
+    inset 0 0 0 22px var(--gold-shadow),
+    inset 0 0 0 999px #efe6d2,                                  /* the cream mat fills whatever is left */
+    0 30px 60px rgba(0,0,0,0.65), 0 8px 18px rgba(0,0,0,0.5);
+}
+.gilt-frame::before { /* repeating bead pattern on the broad moulding */
+  content: ''; position: absolute; inset: 9px; pointer-events: none; border-radius: 3px;
+  border: 7px solid transparent;
+  border-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.22) 0 3px, rgba(0,0,0,0.18) 3px 6px) 7;
+}
+.gilt-canvas {
+  position: relative; flex: 1; min-height: 0; overflow: hidden;
+  background: #0f0e0c center / cover no-repeat;           /* the screenshot, until the site has loaded */
+  border: 2px solid #5a4a2a; box-shadow: 0 0 0 1px #c9b98f, inset 0 0 24px 6px rgba(0,0,0,0.35); /* bevelled mat window */
+}
+.gilt-canvas iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; opacity: 0; transition: opacity 0.4s ease 0.15s; }
+.gilt-canvas.loaded iframe { opacity: 1; background: #fff; }
+.gilt-plaque {
+  align-self: center; margin-top: 12px; padding: 0.35rem 1.2rem; font-size: 0.8rem; letter-spacing: 0.04em;
+  display: flex; gap: 0.75rem; align-items: baseline;
+  color: #2a1d08; background: linear-gradient(180deg, #e9cf86, #b8893a); border-radius: 3px;
+  box-shadow: inset 0 1px 0 #fff2c2, inset 0 -1px 0 #6b4a12, 0 2px 6px rgba(0,0,0,0.5);
+}
+.gilt-plaque strong { font-weight: 800; }
+.gilt-plaque span { opacity: 0.75; font-size: 0.72rem; }
+.gilt-corner { /* leafy corner ornaments */
+  position: absolute; width: 46px; height: 46px; pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 30%, var(--gold-hi) 0 6px, transparent 7px),
+    radial-gradient(circle at 70% 30%, var(--gold) 0 5px, transparent 6px),
+    radial-gradient(circle at 30% 70%, var(--gold) 0 5px, transparent 6px),
+    radial-gradient(circle at 55% 55%, var(--gold-lo) 0 9px, transparent 10px);
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6));
+}
+.gilt-corner.tl { top: -4px; left: -4px; }
+.gilt-corner.tr { top: -4px; right: -4px; transform: scaleX(-1); }
+.gilt-corner.bl { bottom: -4px; left: -4px; transform: scaleY(-1); }
+.gilt-corner.br { bottom: -4px; right: -4px; transform: scale(-1); }
+@media (max-width: 700px) {
+  .gilt-frame { padding: 16px; box-shadow: inset 0 0 0 3px var(--gold-shadow), inset 0 0 0 5px var(--gold-hi), inset 0 0 0 10px var(--gold), inset 0 0 0 12px var(--gold-shadow), 0 20px 40px rgba(0,0,0,0.6); }
+  .gilt-frame::before { display: none; }
+  .gilt-corner { display: none; }
+  .gilt-plaque span { display: none; }
+}
+
 .project-card {
   place-self: center; max-width: 720px; width: calc(100% - 2rem); padding: 2rem;
   background: var(--panel); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;

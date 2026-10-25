@@ -1,10 +1,31 @@
 import * as THREE from 'three';
 
 /**
- * Procedural landmark builders. Each returns { group, colliders } where colliders is a
- * list of { size:[w,h,d], offset:[x,y,z] } boxes (local to the group) used for physics.
- * Replace any of these with a GLTF model later — just keep the same return shape.
+ * Procedural landmark builders. Each is called with (color, project) and returns
+ * { group, colliders } where colliders is a list of { size:[w,h,d], offset:[x,y,z] } boxes
+ * (local to the group) used for physics. A builder may also return `door: [x, y, z]`, a local
+ * point just outside its entrance: standing there on foot lets you go inside (see Gallery.js).
+ * Local +z faces the helipad. Replace any of these with a GLTF model later — just keep the
+ * same return shape.
  */
+
+/** A glowing text sign painted on a canvas (used for the office's rooftop lettering). */
+function textSign(text, color, { w = 1024, h = 256, font = 'bold 150px system-ui, Helvetica, Arial, sans-serif' } = {}) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#12151c';
+  ctx.fillRect(0, 0, w, h);
+  ctx.font = font;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.fillText(text.toUpperCase(), w / 2, h / 2 + 6, w * 0.92);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
 
 const mat = (color, extra = {}) =>
   new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true, ...extra });
@@ -30,7 +51,120 @@ function finish(group) {
   return group;
 }
 
+/**
+ * Office-window texture: a grid of panes (sky reflections, a scattering of lit rooms) with
+ * dark mullions between them. One canvas per face so the panes stay roughly square.
+ */
+function windowTexture(cols, rows, seed = 1) {
+  const cw = 96, ch = 96;
+  const c = document.createElement('canvas');
+  c.width = cols * cw; c.height = rows * ch;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#1d2330';
+  ctx.fillRect(0, 0, c.width, c.height);
+  let s = seed * 9301 + 49297;
+  const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  for (let r = 0; r < rows; r++) for (let i = 0; i < cols; i++) {
+    const x = i * cw, y = r * ch;
+    const lit = rnd() < 0.28;
+    const g = ctx.createLinearGradient(x, y, x + cw, y + ch);
+    if (lit) { g.addColorStop(0, '#ffe3a3'); g.addColorStop(1, '#ffc96b'); }
+    else { g.addColorStop(0, '#a9ddf4'); g.addColorStop(1, '#4f98c9'); }
+    ctx.fillStyle = g;
+    ctx.fillRect(x + 7, y + 7, cw - 14, ch - 14);
+    if (lit) { // a hint of furniture: a dark desk line and a lamp dot
+      ctx.fillStyle = 'rgba(40,30,20,0.35)';
+      ctx.fillRect(x + 14, y + ch * 0.62, cw - 28, 6);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; // glint
+    ctx.fillRect(x + 7, y + 7, (cw - 14) * 0.35, ch - 14);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
 export const landmarkShapes = {
+  /**
+   * Mid-rise office block: a glass tower on concrete slabs over a recessed, warmly lit lobby,
+   * with the project title in lights on the roof. The front doors (local +z, toward the pad)
+   * are the way into the gallery inside — `door` is the spot on the plaza just outside them.
+   */
+  office(color, project = {}) {
+    const g = new THREE.Group();
+    const W = 16, D = 12;                // footprint
+    const LOBBY = 4.2, FLOORS = 4, FH = 3.2; // ground floor height, then four office floors
+    const TOP = LOBBY + FLOORS * FH;     // 17 m to the roof slab
+    const concrete = mat('#e1e4e9', { flatShading: false });
+    const concreteDark = mat('#9aa1ad', { flatShading: false });
+    const dark = mat('#242933', { flatShading: false, roughness: 0.6 });
+    const pavers = mat('#c9c3b8', { flatShading: false });
+    const lobbyGlass = new THREE.MeshStandardMaterial({ color: '#bfe6ff', roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.45, emissive: '#ffd9a0', emissiveIntensity: 0.12 });
+    const warmFloor = mat('#b98a5d', { flatShading: false });
+    const accent = mat(color, { flatShading: false, emissive: color, emissiveIntensity: 0.35, roughness: 0.5 });
+    const accentDeep = mat(new THREE.Color(color).multiplyScalar(0.55), { flatShading: false });
+    const leaf = mat('#4f9a3c');
+
+    // ---------- plaza + planters (thin so the pilot can walk straight over it)
+    g.add(box(W + 4, 0.15, 5, pavers, 0, 0.075, D / 2 + 1.0));
+    for (const x of [-5, 5]) {
+      g.add(box(1.6, 0.9, 1.6, concreteDark, x, 0.45, D / 2 + 1.4));
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.85, 9, 7), leaf).translateX(x).translateY(1.5).translateZ(D / 2 + 1.4));
+    }
+
+    // ---------- lobby: recessed by a metre, glass all round, warm floor, a reception desk you can see through the glass
+    const LW = W - 2, LD = D - 2;
+    g.add(box(LW, 0.25, LD, warmFloor, 0, 0.125, 0));
+    g.add(box(LW, LOBBY, LD, lobbyGlass, 0, LOBBY / 2, 0));
+    g.add(box(LW + 0.4, 0.3, LD + 0.4, dark, 0, LOBBY - 0.15, 0)); // ceiling band
+    for (const x of [-LW / 2 + 0.4, LW / 2 - 0.4]) for (const z of [-LD / 2 + 0.4, LD / 2 - 0.4]) g.add(cyl(0.28, 0.28, LOBBY, 10, concreteDark, x, LOBBY / 2, z));
+    g.add(box(4.2, 1.1, 1.2, accentDeep, 0, 0.8, -1.5));     // reception desk
+    g.add(box(4.4, 0.08, 1.4, concrete, 0, 1.38, -1.5));
+    // front doors in the project colour under a canopy
+    g.add(box(4.6, 3.6, 0.3, dark, 0, 1.8 + 0.25, LD / 2));
+    for (const x of [-1.05, 1.05]) g.add(box(1.9, 3.2, 0.14, accent, x, 1.6 + 0.25, LD / 2 + 0.12));
+    g.add(box(0.1, 3.2, 0.2, dark, 0, 1.6 + 0.25, LD / 2 + 0.15));
+    g.add(box(7.5, 0.3, 3.2, concreteDark, 0, LOBBY - 0.4, LD / 2 + 1.2));
+    for (const x of [-3.2, 3.2]) g.add(cyl(0.08, 0.08, 1.3, 6, dark, x, LOBBY - 0.4 + 0.6, LD / 2 + 2.2).rotateX(-0.6));
+
+    // ---------- the tower: floor slabs with glass between, corner piers
+    const winX = windowTexture(6, FLOORS, 3), winZ = windowTexture(8, FLOORS, 7);
+    const winMat = (t) => new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: '#ffffff', emissiveIntensity: 0.22, roughness: 0.25, metalness: 0.15 });
+    const roofMat = mat('#8c929c', { flatShading: false });
+    const glassTower = new THREE.Mesh(new THREE.BoxGeometry(W - 0.5, FLOORS * FH, D - 0.5), [winMat(winX), winMat(winX), roofMat, roofMat, winMat(winZ), winMat(winZ)]);
+    glassTower.position.set(0, LOBBY + (FLOORS * FH) / 2, 0);
+    g.add(glassTower);
+    for (let i = 0; i <= FLOORS; i++) g.add(box(W, 0.4, D, concrete, 0, LOBBY + i * FH, 0));
+    for (const x of [-W / 2 + 0.3, W / 2 - 0.3]) for (const z of [-D / 2 + 0.3, D / 2 - 0.3]) g.add(box(0.6, TOP - LOBBY, 0.6, concreteDark, x, LOBBY + (TOP - LOBBY) / 2, z));
+
+    // ---------- roof: parapet, plant room, and the sign
+    g.add(box(W, 0.6, 0.3, concreteDark, 0, TOP + 0.3, D / 2 - 0.15));
+    g.add(box(W, 0.6, 0.3, concreteDark, 0, TOP + 0.3, -D / 2 + 0.15));
+    g.add(box(0.3, 0.6, D, concreteDark, W / 2 - 0.15, TOP + 0.3, 0));
+    g.add(box(0.3, 0.6, D, concreteDark, -W / 2 + 0.15, TOP + 0.3, 0));
+    g.add(box(3.2, 1.6, 2.4, concreteDark, -4.5, TOP + 1.0, -2.5));
+    g.add(cyl(0.9, 0.9, 0.3, 12, dark, -4.5, TOP + 1.95, -2.5));
+    const signTex = textSign(project.title || 'Projects', color);
+    const signW = 12, signH = 3;
+    g.add(box(signW + 0.3, signH + 0.3, 0.3, dark, 0, TOP + 2.3, 0));
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(signW, signH), new THREE.MeshStandardMaterial({ map: signTex, emissiveMap: signTex, emissive: '#ffffff', emissiveIntensity: 1.1, roughness: 0.6 }));
+    sign.position.set(0, TOP + 2.3, 0.17);
+    g.add(sign);
+    for (const x of [-signW / 2 + 0.3, signW / 2 - 0.3]) g.add(cyl(0.1, 0.1, 1.1, 6, dark, x, TOP + 0.55, 0));
+    g.add(cyl(0.06, 0.06, 4, 6, dark, 6, TOP + 2.2, 3));    // aerial
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), mat('#ff4d4d', { emissive: '#ff2222', emissiveIntensity: 1.5 })).translateX(6).translateY(TOP + 4.3).translateZ(3));
+
+    return {
+      group: finish(g),
+      colliders: [
+        { size: [LW + 0.4, LOBBY, LD + 0.4], offset: [0, LOBBY / 2, 0] },                         // the lobby (recessed: you can walk under the overhang)
+        { size: [W, TOP - LOBBY + 1.2, D], offset: [0, LOBBY + (TOP - LOBBY + 1.2) / 2, 0] },   // the tower above it
+      ],
+      door: [0, 0.15, LD / 2 + 1.0],
+    };
+  },
+
   /** Dark-wood restaurant with a glowing sign and a chimney. */
   restaurant(color) {
     const g = new THREE.Group();

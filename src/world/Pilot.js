@@ -33,6 +33,8 @@ export class Pilot {
     this.grounded = false;
     this.pads = [];
     this.platforms = [];      // rotated rectangles you can stand on (the dock): { x, z, yaw, hw, hl, top }
+    this.floorAt = null;      // indoors: replaces the terrain as "the ground" (see setFloor)
+    this._slicked = new WeakSet(); // cannon worlds that already carry the pilot's zero-friction contact materials
     this._dir = new THREE.Vector3();
     this._tmp = new THREE.Vector3();
 
@@ -55,15 +57,39 @@ export class Pilot {
       linearDamping: 0,
     });
     this.body.updateMassProperties();
-    // Zero friction against the world: cannon's friction solver pins a non-rotating sphere in place,
-    // so the pilot does his own traction (see drive). Restitution 0 so landings don't bounce.
-    const slick = (m) => this.world.addContactMaterial(new CANNON.ContactMaterial(this.body.material, m, { friction: 0, restitution: 0 }));
-    slick(this.world.defaultMaterial);                  // pads, landmarks, trees, rocks, crates…
-    if (this.terrain.body?.material) slick(this.terrain.body.material); // …and the terrain heightfield
+    this.#slick(this.world);
+  }
+
+  /**
+   * Zero friction against a world: cannon's friction solver pins a non-rotating sphere in place,
+   * so the pilot does his own traction (see drive). Restitution 0 so landings don't bounce.
+   */
+  #slick(world) {
+    if (this._slicked.has(world)) return;
+    this._slicked.add(world);
+    const slick = (m) => world.addContactMaterial(new CANNON.ContactMaterial(this.body.material, m, { friction: 0, restitution: 0 }));
+    slick(world.defaultMaterial);                       // pads, landmarks, trees, rocks, crates, interior walls…
+    if (this.terrain.body?.material && world.bodies.includes(this.terrain.body)) slick(this.terrain.body.material); // …and the terrain heightfield
     // cannon only consults ContactMaterials when BOTH bodies carry a material, so give the
     // material-less static bodies the world default explicitly (the pilot is built after the world).
-    for (const other of this.world.bodies) if (!other.material) other.material = this.world.defaultMaterial;
+    for (const other of world.bodies) if (!other.material) other.material = world.defaultMaterial;
   }
+
+  /**
+   * Move the pilot's physics body into another cannon world (the gallery inside the office has
+   * its own). Keeps him active if he was. Call before activate()/teleport() in the new world.
+   */
+  setWorld(world) {
+    if (world === this.world) return;
+    const wasActive = this.active;
+    if (wasActive) this.world.removeBody(this.body);
+    this.world = world;
+    this.#slick(world);
+    if (wasActive) world.addBody(this.body);
+  }
+
+  /** Indoors there is no terrain: `fn(x, z)` → floor height, or null to go back to the terrain + pads. */
+  setFloor(fn) { this.floorAt = fn; }
 
   #buildVisual() {
     // Deliberately generic: grey hoodie, dark trousers, sneakers, cap. Group origin is at the feet.
@@ -121,6 +147,7 @@ export class Pilot {
 
   /** Height of whatever the pilot would stand on at (x, z). */
   groundAt(x, z) {
+    if (this.floorAt) return this.floorAt(x, z);
     let h = this.terrain.heightAt(x, z);
     for (const p of this.pads) if (Math.hypot(x - p.x, z - p.z) < p.radius) h = Math.max(h, p.top);
     for (const q of this.platforms) {

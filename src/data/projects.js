@@ -12,10 +12,16 @@
  *              (no X-Frame-Options / CSP frame-ancestors blocking). GitHub blocks it.
  *              false → show a project card with an "Open" button instead.
  *  position    [x, z] in world units (world is roughly -240..240 on each axis)
- *  landmark    one of: 'kitchen' | 'restaurant' | 'tower' | 'lighthouse' | 'arch' | 'pyramid' | 'windmill' | 'observatory'
+ *  landmark    one of: 'office' | 'kitchen' | 'restaurant' | 'tower' | 'lighthouse' | 'arch' | 'pyramid' | 'windmill' | 'observatory'
  *  color       accent color for the landmark and pad
  *  padLogo     optional image (in /public) painted around the edge of this project's helipad
  *              in place of the standard markings. padH: false also hides the H.
+ *  gallery     ('office' only) the projects hung as paintings inside the building. Each entry
+ *              takes the same fields as a top-level project minus position/landmark; the
+ *              painting shows `image` (a screenshot in /public) when given, otherwise a poster
+ *              painted from the title, tech line and color. Walk up to one and press E to open it.
+ *              frame: true shows an embedded site inside a gilded picture frame (with the
+ *              screenshot behind it while it loads) instead of edge to edge.
  */
 export const projects = [
   {
@@ -24,8 +30,10 @@ export const projects = [
     tech: 'Editorial recipe site',
     description:
       'A dark-themed editorial recipe website focused on braises, whole-animal cooking and seasonal, locally sourced ingredients.',
-    url: 'https://example.com/zen-of-cooking',
-    embed: false,
+    url: 'https://www.thezenofcooking.com',
+    embed: true,
+    frame: true,
+    image: '/zen-of-cooking.jpg',
     position: [110, -80],
     landmark: 'kitchen',
     color: '#ff7a45',
@@ -35,17 +43,61 @@ export const projects = [
     padH: false,
   },
   {
-    id: 'json-api',
-    title: 'JSON:API Platform',
-    tech: 'ASP.NET Core · JsonApiDotNetCore · PostgreSQL',
+    id: 'projects',
+    title: 'Projects',
+    tech: 'Land, get out, and walk in through the lobby',
     description:
-      'Backend API platform built on JsonApiDotNetCore with EF Core, deployed to AWS through a CI/CD pipeline.',
-    url: 'https://github.com/',
-    source: 'https://github.com/',
+      'An office building with a gallery inside. Land on the pad, climb out of the helicopter and walk through the front doors to see the paintings.',
+    url: '',
     embed: false,
     position: [-120, -100],
-    landmark: 'tower',
+    landmark: 'office',
     color: '#4cc9f0',
+    gallery: [
+      {
+        id: 'feltfolio',
+        title: 'FeltFolio',
+        tech: 'Portfolio tracker',
+        description: 'FeltFolio — a portfolio tracker. Point this entry at the live site and drop a screenshot in /public to show it on the painting.',
+        url: 'https://example.com/feltfolio',
+        embed: false,
+        color: '#2ec4b6',
+      },
+      {
+        id: 'zen-of-cooking-gallery',
+        title: 'The Zen of Cooking',
+        tech: 'Editorial recipe site · gallery, collections, cook\'s notes',
+        description:
+          'A quiet kitchen: a dark-themed editorial recipe site about intentional cooking — braises, whole-animal cooking and seasonal, locally sourced ingredients.',
+        url: 'https://www.thezenofcooking.com',
+        embed: true,
+        frame: true,
+        color: '#ff7a45',
+        image: '/zen-of-cooking.jpg',
+      },
+      {
+        id: 'zoltan-speaks',
+        title: 'Zoltan Speaks',
+        tech: 'Fortune-telling machine · ask by text or voice',
+        description: 'Zoltan Speaks — a boardwalk fortune-telling machine on a moonlit pier. Type or speak your question, and the spirits shall answer.',
+        url: 'https://www.zoltanspeaks.com',
+        embed: true,
+        frame: true,
+        color: '#b388ff',
+        image: '/zoltan-speaks.jpg',
+      },
+      {
+        id: 'prestige-worldwide-ffl',
+        title: 'Prestige Worldwide FFL',
+        tech: '10-team dynasty league · live matchups, odds, dynasty analyzer, history',
+        description: 'Prestige Worldwide — the hub for a 10-team dynasty fantasy football league: live matchup odds, start/sit, a dynasty analyzer, league chat and eight seasons of history, fed by Sleeper.',
+        url: 'https://www.prestigeworldwideffl.com',
+        embed: true,
+        frame: true,    // the site opens inside a gilded picture frame
+        color: '#ffd166',
+        image: '/prestige-worldwide.jpg',
+      },
+    ],
   },
   {
     id: 'three-sandbox',

@@ -46,7 +46,7 @@ Everything is driven by `src/data/projects.js`. Add an entry:
   image: '/my-app.png',                      // optional, put the file in /public
   embed: true,                               // iframe it (see below) or show a card
   position: [40, 80],                        // [x, z]; world is roughly ±120
-  landmark: 'windmill',                      // restaurant | tower | lighthouse | arch | pyramid | windmill | observatory
+  landmark: 'windmill',                      // office | restaurant | tower | lighthouse | arch | pyramid | windmill | observatory
   color: '#ffb547',
   padLogo: '/my-logo.png',                   // optional: paint this image around the helipad edge
   padH: false,                               // optional: hide the H when the logo owns the pad
@@ -54,6 +54,16 @@ Everything is driven by `src/data/projects.js`. Add an entry:
 ```
 
 The terrain flattens itself around each landmark and its pad, so you can drop one anywhere.
+
+### The Projects building (`landmark: 'office'`)
+
+An `office` landmark is enterable: land on its pad, get out once the rotors stop, walk up to the
+front doors and press **F**. Inside is a gallery (`src/interior/Gallery.js` — its own scene and
+physics world) with one large painting per entry in the project's `gallery` array. Each entry takes
+the same fields as a top-level project minus `position`/`landmark`: give it an `image` (a screenshot
+in `/public`) and that hangs on the wall; leave it out and a poster is painted from the title, tech
+line and color. Walk up to a painting and press **E** to open it in the overlay, exactly like a pad.
+`#project=<gallery-id>` deep links work too. **F** at the doors takes you back out onto the plaza.
 
 ### `embed: true` — the iframe caveat
 

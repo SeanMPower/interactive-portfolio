@@ -46,10 +46,14 @@ export class Landmarks {
 
       // --- visual
       const builder = landmarkShapes[p.landmark] || landmarkShapes.tower;
-      const { group, colliders } = builder(p.color);
+      const { group, colliders, door: doorLocal } = builder(p.color, p);
       group.position.set(x, y - 0.1, z);
       group.rotation.y = pad.yaw + Math.PI; // face the pad
       scene.add(group);
+      group.updateMatrixWorld(true);
+      // an enterable landmark: the world-space spot outside its door, and which way "out" faces
+      const door = doorLocal ? group.localToWorld(new THREE.Vector3(...doorLocal)) : null;
+      const doorYaw = group.rotation.y; // local +z (toward the pad) in world yaw
 
       // --- physics (static boxes, rotated with the landmark)
       const body = new CANNON.Body({ mass: 0 });
@@ -111,7 +115,7 @@ export class Landmarks {
       label.style.borderColor = p.color;
       labelRoot.appendChild(label);
 
-      this.items.push({ project: p, group, body, ring, disc, marker, label, pad: { ...pad, y: padY }, padTop: padY + 0.8, baseY: y + top + 3 });
+      this.items.push({ project: p, group, body, ring, disc, marker, label, pad: { ...pad, y: padY }, padTop: padY + 0.8, baseY: y + top + 3, door, doorYaw });
     }
   }
 
